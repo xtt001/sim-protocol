@@ -1,0 +1,5 @@
+# sim-protocol — no build artifacts expected, but just in case
+__pycache__/
+*.pyc
+.DS_Store
+*.swp

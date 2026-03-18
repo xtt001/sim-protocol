@@ -1,0 +1,10 @@
+# CODEOWNERS
+# Both teams must approve any PR that changes these files.
+# Unity/AGX team:   replace @agxunity-team with real GitHub handle(s)
+# Python/testbed:   replace @testbed-team with real GitHub handle(s)
+
+*                 @agxunity-team @testbed-team
+protocol.md       @agxunity-team @testbed-team
+schema.md         @agxunity-team @testbed-team
+constants.yaml    @agxunity-team @testbed-team
+eval_suite_v0.yaml @agxunity-team @testbed-team

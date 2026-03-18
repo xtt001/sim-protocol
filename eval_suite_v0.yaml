@@ -1,0 +1,73 @@
+# eval_suite_v0.yaml — AGX Excavation Evaluation Suite (V0)
+#
+# Repo: sim-protocol (Repo C — shared)
+# Last updated: 2026-03-18
+# Rule: Do NOT silently change seeds, scenarios, or success thresholds — doing
+#       so breaks comparability across runs. Create eval_suite_v1.yaml instead.
+# ─────────────────────────────────────────────────────────────────────────────
+
+suite_name:    "agx_excavation_v0"
+suite_version: "v0"
+schema_version: "1.1"
+
+# ── Success rule ─────────────────────────────────────────────────────────────
+# Primary: mass-based (spec §8)
+success:
+  rule:         "mass_in_bucket"        # "mass_in_bucket" | "posture_fallback"
+  mass_thresh:  1.0                     # kg; TODO: replace with team-defined value
+  hold_steps:   25                      # consecutive steps = 0.5s @ 50Hz
+  env_state_idx: 0                      # mass_in_bucket is index 0 in env_state
+
+# ── Rollout parameters ────────────────────────────────────────────────────────
+rollout:
+  episode_len:  500                     # max steps per rollout (10s @ 50Hz)
+  num_rollouts: 10                      # increase to 50 for final eval
+
+# ── Scenarios (fixed, V0) ────────────────────────────────────────────────────
+# Each scenario defines a reset configuration.
+# V0 uses baseline_fixed reset mode (no seeded terrain randomisation).
+scenarios:
+  - id:               "s0_baseline"
+    description:      "Flat terrain, excavator at default pose, empty bucket"
+    seeds:            [0, 1, 2]
+    reset_terrain:    false
+    reset_pose:       true
+    scenario_id_str:  ""                # empty = Unity uses default scene
+
+  # Uncomment and extend for broader evaluation:
+  # - id:             "s1_terrain_a"
+  #   description:    "Pre-loaded terrain variant A"
+  #   seeds:          [0, 1, 2]
+  #   reset_terrain:  true
+  #   reset_pose:     true
+  #   scenario_id_str: "terrain_a"
+
+# ── Output artifacts ─────────────────────────────────────────────────────────
+artifacts:
+  metrics_file:    "metrics.json"       # success_rate, mean_reward, etc.
+  summary_csv:     "summary.csv"        # per-rollout rows
+  video_dir:       "videos/"            # rollout_XXX.mp4
+  save_video:      true
+  highlight_video: true                 # best-rollout clip
+
+# ── Determinism ───────────────────────────────────────────────────────────────
+determinism:
+  reset_mode: "baseline_fixed"          # V0; no terrain randomisation
+  note: >
+    V0 eval requires identical initial conditions per seed.
+    Unity must return the same qpos on RESET with the same seed.
+    Full seeded terrain randomisation is planned for v1.
+
+# ── Comparison baseline ───────────────────────────────────────────────────────
+# Fill in after first successful closed-loop result.
+baselines: {}
+# Example:
+# baselines:
+#   dummy_policy:
+#     success_rate: 0.0
+#     mean_reward: 0.0
+#     date: "2026-03-18"
+#   act_v0_ckpt_001:
+#     success_rate: 0.3
+#     mean_reward: 0.15
+#     date: "2026-03-25"
