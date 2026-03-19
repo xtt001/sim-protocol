@@ -49,6 +49,8 @@ Contract boundary:
 - Offline collected data is the HDF5 dataset contract in `schema.md`.
 - Repo B may emit local `metadata.json` / `steps.jsonl` / raw RGB sidecar files,
   but those are auxiliary Unity-native exports, not the shared live contract.
+- V0 task scope is fixed-position / stationary digging only; drive / steer /
+  track motion are intentionally excluded from the current shared action space.
 
 ## What Is Settled
 
@@ -59,7 +61,10 @@ Contract boundary:
 - `qpos` is currently 4D in the running Unity implementation.
 - FPV transport is raw RGB in V0.
 - Action semantics are `actuator_speed_cmd`.
+- V0 action dimension is intentionally 4, not 6.
 - V0 success is `mass_in_bucket_kg >= 2.0` for `25` consecutive steps.
+- `reward` is currently a placeholder `0.0`; success is computed post-hoc from
+  the recorded `env_state` series.
 
 ## What Is Still Provisional
 
@@ -88,3 +93,6 @@ Contract boundary:
   conversion utility into the shared HDF5 schema.
 - Revisit the fixed `2.0 kg` success threshold only if the Unity scene/material
   calibration changes materially.
+- Freeze a short written V0 benchmark task spec for start pose / terrain /
+  episode packaging, since the control and evaluator contracts are now ahead of
+  the task-sheet wording.

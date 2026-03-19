@@ -66,7 +66,7 @@ Stored as HDF5 attributes under `/metadata`.
 | `scale` | float32[4] | per-axis teleop scale |
 | `limit` | float32[4] | per-axis teleop clip |
 | `reset_mode` | string | example: `"baseline_fixed"` |
-| `success` | int32/bool | post-hoc label |
+| `success` | int32/bool | post-hoc label derived later from evaluator logic |
 | `n_steps` | int32 | convenience metadata |
 
 ## 3. /timestamps
@@ -180,6 +180,10 @@ col 3: bucket_speed_cmd
 
 These are the exact commands sent through `STEP_REQ`.
 
+Current V0 task scope:
+- stationary / fixed-position digging
+- no `drive`, `steer`, or track channels in this action dataset yet
+
 ## 7. /rewards
 
 | Property | Value |
@@ -190,7 +194,10 @@ These are the exact commands sent through `STEP_REQ`.
 
 Current V0 behavior:
 - usually `0.0`
+- it is not the primary task signal for AGX V0
 - success is determined later from `env_state`
+- current V0 evaluator rule is `mass_in_bucket_kg >= 2.0` for `25`
+  consecutive steps
 
 ## 8. Replay Validity Requirements
 
@@ -215,4 +222,6 @@ locked here yet.
   derivable from the image dataset shape.
 - Decide whether Repo B's local JSON/RGB export gets an official conversion
   path into this HDF5 schema.
-- Finalize any post-hoc success labels once the evaluator contract is closed.
+- The evaluator contract is closed enough for V0 mass-based success, but the
+  short written benchmark task definition still needs to be frozen
+  (start pose / terrain / rollout packaging).
