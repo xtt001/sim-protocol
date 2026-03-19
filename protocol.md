@@ -172,7 +172,13 @@ After the common response prefix, fields are written in this order:
 
 Current behavior:
 - `reset_applied = true` when `reset_terrain || reset_pose`
-- the current reset path goes through the current Unity episode/scene reset service
+- when `reset_pose = true` and `reset_terrain = false`, Unity resets pose and
+  counters without forcing a terrain height reset
+- when both flags are true, Unity performs the full scene reset path
+- for step-ack serving, a successful reset also re-arms the machine controller
+  engine so subsequent `STEP_REQ` actions take effect immediately
+- the current reset path prefers the current Unity scene reset service and only
+  falls back to the episode reset path for full resets
 
 ## 9. STEP_RESP Payload
 
@@ -258,7 +264,9 @@ Compared with older drafts, the current implementation has these important updat
 - `protocol_version` string is still `agx-sim/v0`
 - boom position and speed still use `BoomPrismatics[0]`
 - `swing_position_norm` exists, but its normalization window is scene/config dependent
-- transport has framing and CRC32, but no reconnect/session layer above TCP
+- transport is still a single-client sequential TCP service; the server now
+  drops stale dead clients, but there is no higher-level reconnect/session
+  protocol above TCP
 
 ## 14. Versioning
 

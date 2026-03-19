@@ -62,6 +62,8 @@ Contract boundary:
 - FPV transport is raw RGB in V0.
 - Action semantics are `actuator_speed_cmd`.
 - V0 action dimension is intentionally 4, not 6.
+- `RESET_REQ.reset_pose` and `RESET_REQ.reset_terrain` are independent in the
+  current Unity implementation; pose-only reset must not implicitly re-sculpt terrain.
 - V0 success is `mass_in_bucket_kg >= 2.0` for `25` consecutive steps.
 - `reward` is currently a placeholder `0.0`; success is computed post-hoc from
   the recorded `env_state` series.
@@ -74,6 +76,8 @@ Contract boundary:
   should not be treated as globally fixed constants yet.
 - Boom position/speed still comes from `BoomPrismatics[0]` in the current
   Unity implementation.
+- TCP transport is still single-client sequential; dead client cleanup is in
+  place, but there is no higher-level reconnect/session layer in Repo C.
 
 ## Versioning Rules
 
