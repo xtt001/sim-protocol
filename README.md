@@ -64,6 +64,10 @@ Contract boundary:
 - V0 action dimension is intentionally 4, not 6.
 - `RESET_REQ.reset_pose` and `RESET_REQ.reset_terrain` are independent in the
   current Unity implementation; pose-only reset must not implicitly re-sculpt terrain.
+- Terrain reset is handled by Unity `ResetTerrain` / `SceneResetService`; the
+  excavation metrics component is no longer part of the terrain reset path.
+- Pending step-ack requests are consumed on Unity `FixedUpdate`, keeping live
+  step-ack teleop aligned with the advertised fixed simulation timestep.
 - V0 success is `mass_in_bucket_kg >= 2.0` for `25` consecutive steps.
 - `reward` is currently a placeholder `0.0`; success is computed post-hoc from
   the recorded `env_state` series.

@@ -179,6 +179,10 @@ Current behavior:
   engine so subsequent `STEP_REQ` actions take effect immediately
 - the current reset path prefers the current Unity scene reset service and only
   falls back to the episode reset path for full resets
+- terrain reset is handled by Unity `ResetTerrain` / `SceneResetService`; the
+  excavation metrics component no longer mutates terrain heights during reset
+- pending step-ack requests are consumed on Unity `FixedUpdate`, so live
+  step-ack teleop stays aligned with the fixed simulation timestep
 
 ## 9. STEP_RESP Payload
 
