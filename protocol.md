@@ -1,271 +1,261 @@
-# protocol.md — AGXUnity ↔ Python Testbed Wire Protocol (V0)
+# protocol.md — AGXUnity <-> Python Step-Ack Wire Protocol
 
-**Repo:** sim-protocol (Repo C — shared)  
-**Last updated:** 2026-03-18  
-**Owner:** joint (Unity/AGX team + Python/testbed team)  
-**Rule:** Any change to message types, field ordering, or dimensions requires a version bump + joint PR review.
+Repo: sim-protocol (Repo C - shared)
+Last updated: 2026-03-19
+Owner: joint (Unity/AGX team + Python/testbed team)
 
----
+This document is aligned to the current Repo B implementation.
+If older drafts in Repo A or Repo B disagree with this file, those older drafts
+are stale.
 
-## 0) Locked Decisions (Do NOT change without joint review)
+## 1. Scope
 
-| # | Decision |
-|---|---|
-| 1 | Simulator = **AGXUnity (Unity/C#)** |
-| 2 | Communication = **custom C# TCP socket** (NOT ROS-TCP) |
-| 3 | Stepping = **strict step-ack** using **manual DoStep()** |
-| 4 | Vision = **first-person camera ("fpv") required** |
-| 5 | Image transport V0 = **raw RGB**; V1 = H.264 (optional) |
-| 6 | Action semantics = **actuator/constraint speed cmd** (`actuator_speed_cmd`) |
-| 7 | qpos (len=3) = boom/stick/bucket position_norm; **no swing_position_norm in V0** |
-| 8 | qvel (len=4) = swing/boom/stick/bucket speeds |
-| 9 | boom signals use **BoomPrismatics[0] only** in V0 |
+The protocol is used for:
+- `GET_INFO`
+- `RESET`
+- `STEP`
 
----
+It is a TCP binary protocol with:
+- fixed-size frame header
+- binary payloads
+- CRC32 over payload bytes
+- raw RGB image transport for V0
 
-## 1) Why Step-Ack
+Current control semantics:
+- action semantics: `actuator_speed_cmd`
+- action order: `[swing_speed_cmd, boom_speed_cmd, stick_speed_cmd, bucket_speed_cmd]`
 
-Python sends `STEP_REQ(step_id=k)`. Unity must reply `STEP_RESP(step_id=k)` — same k, same step.
+Current observation semantics:
+- qpos order: `[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]`
+- qvel order: `[swing_speed, boom_speed, stick_speed, bucket_speed]`
+- env_state order: `[mass_in_bucket_kg]`
 
-Required because:
-- training data validity (action/obs must be aligned)
-- episode replay must reproduce the exact same trajectory
-- eval suite reproducibility (fair model comparison)
+## 2. Byte Order and Primitive Encoding
 
-Unity `FixedUpdate` can run multiple fixed steps per rendered frame (catch-up). Step-ack bypasses this ambiguity.
+All numeric values use .NET `BinaryWriter` / `BinaryReader` style encoding:
+- little-endian integers
+- little-endian IEEE754 `float32`
 
----
+Primitive encodings:
+- `bool` -> `uint8` (`0` or `1`)
+- `string` -> `int32 byte_len` + UTF-8 bytes
+- `float[]` -> `int32 len` + `len * float32`
+- `string[]` -> `int32 len` + repeated encoded strings
+- `bytes` -> `int32 byte_len` + raw bytes
 
-## 2) Transport
+## 3. Frame Header
 
-- TCP, binary framing, little-endian
-- Every message = **16-byte header** + **payload** (0 or more bytes)
-- Python is the **client**; Unity is the **server**
+Every TCP message is:
+- `header[16 bytes]`
+- `payload[payload_len bytes]`
 
----
+Header layout:
 
-## 3) Header (16 bytes, little-endian)
+| Field | Type | Value / Meaning |
+| --- | --- | --- |
+| `magic` | `uint32` | `0xA6A6A6A6` |
+| `version` | `uint16` | `1` |
+| `msg_type` | `uint16` | see section 4 |
+| `payload_len` | `uint32` | payload byte length |
+| `crc32` | `uint32` | CRC32 of payload only |
 
-```
-offset  size  type     field
-──────  ────  ───────  ─────────────────────────────────────────
-0       4     uint32   magic        = 0xA6A6A6A6
-4       2     uint16   version      = 1
-6       2     uint16   msg_type     (see §4)
-8       4     uint32   payload_len  (bytes after this header)
-12      4     uint32   crc32        (0 = not checked in V0)
-```
+CRC32 details:
+- polynomial: `0xEDB88320`
+- initial value: `0xFFFFFFFF`
+- final xor: `0xFFFFFFFF`
 
-C# struct layout:
-```csharp
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-struct MsgHeader {
-    uint magic;       // 0xA6A6A6A6
-    ushort version;   // 1
-    ushort msg_type;
-    uint payload_len;
-    uint crc32;
-}
-```
+Current behavior:
+- frames with wrong magic must be rejected
+- frames with wrong header version must be rejected
+- frames with excessive payload size must be rejected
+- frames with invalid CRC32 must be rejected
 
----
+## 4. Message Types
 
-## 4) Message Types
+| Name | Numeric value |
+| --- | --- |
+| `GET_INFO_REQ` | `1` |
+| `GET_INFO_RESP` | `2` |
+| `RESET_REQ` | `3` |
+| `RESET_RESP` | `4` |
+| `STEP_REQ` | `5` |
+| `STEP_RESP` | `6` |
 
-| Name | uint16 value | Direction |
-|---|---|---|
-| `GET_INFO_REQ`  | 1 | Python → Unity |
-| `GET_INFO_RESP` | 2 | Unity → Python |
-| `RESET_REQ`     | 3 | Python → Unity |
-| `RESET_RESP`    | 4 | Unity → Python |
-| `STEP_REQ`      | 5 | Python → Unity |
-| `STEP_RESP`     | 6 | Unity → Python |
-
----
-
-## 5) GET_INFO (capability handshake)
+## 5. Request Payloads
 
 ### 5.1 GET_INFO_REQ
-- `payload_len = 0` (empty body)
 
-### 5.2 GET_INFO_RESP
-- `payload_len = N` (UTF-8 JSON string, N bytes)
+Payload:
+- empty payload allowed
 
-Minimum required JSON fields:
-```json
-{
-  "protocol_version": 1,
-  "dt": 0.02,
-  "control_hz": 50,
-  "action_semantics": "actuator_speed_cmd",
-  "action_dim": 4,
-  "action_order": ["swing_speed_cmd", "boom_speed_cmd", "stick_speed_cmd", "bucket_speed_cmd"],
-  "qpos_dim": 3,
-  "qpos_order": ["boom_position_norm", "stick_position_norm", "bucket_position_norm"],
-  "qvel_dim": 4,
-  "qvel_order": ["swing_speed", "boom_speed", "stick_speed", "bucket_speed"],
-  "cameras": ["fpv"],
-  "camera_width": 320,
-  "camera_height": 240,
-  "camera_fps": 50,
-  "image_format": "raw_rgb",
-  "env_state_dim": 1,
-  "env_state_layout": {"mass_in_bucket": 0}
-}
+### 5.2 RESET_REQ
+
+Binary field order:
+1. `seed: int32`
+2. `reset_terrain: bool`
+3. `reset_pose: bool`
+4. `client_time_ns: int64` optional
+5. `scenario_id: string` optional
+
+Notes:
+- zero-length payload may be accepted and treated as defaults
+- optional trailing fields may be omitted
+
+### 5.3 STEP_REQ
+
+Binary field order:
+1. `step_id: int64`
+2. `action: float32[]`
+3. `client_time_ns: int64` optional
+
+Constraints:
+- action length must be at least `4`
+- Unity currently consumes the first four action values in this order:
+  `[swing, boom, stick, bucket]`
+
+## 6. Common Response Prefix
+
+All response payloads start with:
+1. `success: bool`
+2. `error: string`
+
+If `success == 0`, the rest of the payload is still emitted in normal layout,
+but only the prefix and warnings should be trusted.
+
+## 7. GET_INFO_RESP Payload
+
+After the common response prefix, fields are written in this order:
+1. `protocol_version: string`
+2. `dt: float32`
+3. `control_hz: float32`
+4. `action_semantics: string`
+5. `action_order: string[]`
+6. `qpos_order: string[]`
+7. `qvel_order: string[]`
+8. `env_state_order: string[]`
+9. `camera_names: string[]`
+10. `supports_reset_pose: bool`
+11. `supports_images: bool`
+12. `cameras: camera_descriptor[]`
+13. `warnings: string[]`
+
+`camera_descriptor` field order:
+1. `name: string`
+2. `width: int32`
+3. `height: int32`
+4. `fps: float32`
+5. `pixel_format: string`
+6. `row_order: string`
+
+Current known values:
+- `protocol_version = "agx-sim/v0"`
+- `action_semantics = "actuator_speed_cmd"`
+- `camera_names = ["fpv"]` when the FPV camera is configured
+- `supports_reset_pose = true`
+- `supports_images = true` when the FPV camera is configured
+- `pixel_format = "raw_rgb"`
+- `row_order = "top_to_bottom"`
+
+Important note:
+- camera width, height, and fps are runtime-advertised by the running Unity
+  camera and should not be treated as fixed global constants yet
+
+## 8. RESET_RESP Payload
+
+After the common response prefix, fields are written in this order:
+1. `reset_applied: bool`
+2. `dt: float32`
+3. `control_hz: float32`
+4. `warnings: string[]`
+
+Current behavior:
+- `reset_applied = true` when `reset_terrain || reset_pose`
+- the current reset path goes through the current Unity episode/scene reset service
+
+## 9. STEP_RESP Payload
+
+After the common response prefix, fields are written in this order:
+1. `step_id: int64`
+2. `qpos: float32[]`
+3. `qvel: float32[]`
+4. `env_state: float32[]`
+5. `image_format: string`
+6. `image_w: int32`
+7. `image_h: int32`
+8. `image_payload: bytes`
+9. `reward: float32`
+10. `sim_time_ns: int64`
+11. `warnings: string[]`
+
+Current known values:
+- `qpos.len = 4`
+- `qvel.len = 4`
+- `env_state.len = 1`
+- `reward = 0.0`
+- `image_format = "raw_rgb"` when FPV capture succeeds
+- `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
+
+Image payload rules:
+- layout is row-major
+- row order is top-to-bottom
+- channel order is RGB
+- byte count should be `image_w * image_h * 3`
+
+## 10. Locked V0 Ordering
+
+### Action
+```text
+[swing_speed_cmd, boom_speed_cmd, stick_speed_cmd, bucket_speed_cmd]
 ```
 
----
-
-## 6) RESET
-
-### 6.1 RESET_REQ (12 + N bytes)
-
-```
-offset  size  type     field
-──────  ────  ───────  ──────────────────────────────
-0       4     int32    seed               (-1 = unused)
-4       1     uint8    reset_terrain      (1 = yes)
-5       1     uint8    reset_pose         (1 = yes)
-6       2     uint8[2] _pad
-8       4     uint32   scenario_id_len    (N, 0 if none)
-12      N     char[]   scenario_id        (UTF-8, no null terminator)
+### qpos
+```text
+[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]
 ```
 
-Python struct format: `"<iBBxxI"` + variable-length string
-
-### 6.2 RESET_RESP (16 bytes)
-
-```
-offset  size  type     field
-──────  ────  ───────  ──────────────────────────────
-0       1     uint8    success            (1 = ok, 0 = failed)
-1       3     uint8[3] _pad
-4       4     float32  dt                 (confirms timestep)
-8       4     float32  control_hz         (confirms rate)
-12      4     uint32   warning_flags      (0 = none)
+### qvel
+```text
+[swing_speed, boom_speed, stick_speed, bucket_speed]
 ```
 
-Python struct format: `"<BxxxffI"`
-
----
-
-## 7) STEP (primary loop)
-
-### 7.1 STEP_REQ (32 bytes)
-
-```
-offset  size  type     field
-──────  ────  ───────  ──────────────────────────────────────────
-0       8     int64    step_id            (monotonically increasing)
-8       16    float32  action[4]          (swing, boom, stick, bucket speed cmd)
-                                          normalized in [-1, 1]
-24      8     int64    client_time_ns     (0 = unused; for latency profiling)
+### env_state
+```text
+[mass_in_bucket_kg]
 ```
 
-Python struct format: `"<qffffq"`  Total: 32 bytes
+## 11. Step-Ack Rules
 
-Action vector order (LOCKED):
-```
-index 0: swing_speed_cmd
-index 1: boom_speed_cmd
-index 2: stick_speed_cmd
-index 3: bucket_speed_cmd
-```
+Required control loop:
+1. Python sends `STEP_REQ(step_id=k, action=...)`
+2. Unity applies the action
+3. Unity performs exactly one logical `DoStep()`
+4. Unity samples qpos, qvel, env_state, and FPV frame
+5. Unity returns `STEP_RESP(step_id=k, ...)`
 
-### 7.2 STEP_RESP (variable, minimum 60 + M*4 + 20 bytes)
+Hard rules:
+- `STEP_RESP.step_id` must equal the request `step_id`
+- one `STEP_REQ` corresponds to one exposed simulation step
+- image payload must describe the same post-step state as qpos, qvel, and env_state
 
-**Fixed part 1 — state (40 bytes):**
-```
-offset  size  type     field
-──────  ────  ───────  ──────────────────────────────────────────
-0       8     int64    step_id            (MUST equal STEP_REQ.step_id)
-8       12    float32  qpos[3]            (boom, stick, bucket position_norm)
-20      16    float32  qvel[4]            (swing, boom, stick, bucket speed)
-36      4     uint32   env_state_len      (M, number of float32 values)
-```
+## 12. Current Implementation Update
 
-Python struct format: `"<qfffffffI"`  Total: 40 bytes
+Compared with older drafts, the current implementation has these important updates:
+- JSON transport has been removed; transport is now binary framed TCP
+- `qpos` has been expanded from 3D to 4D by adding `swing_position_norm`
+- FPV export uses raw RGB bytes, not JSON-wrapped image data
+- `GET_INFO_RESP` advertises camera metadata from the running FPV camera
+- `reset_pose` is supported through the current reset path
 
-**Variable part — env_state (M × 4 bytes):**
-```
-float32  env_state[M]   (index 0 = mass_in_bucket)
-```
+## 13. Known Limits
 
-**Fixed part 2 — image header (20 bytes):**
-```
-offset  size  type     field
-──────  ────  ───────  ──────────────────────────────────────────
-0       4     float32  reward             (0.0 in V0; computed in Python)
-4       1     uint8    image_format       (ImageFormat enum: 0=NONE, 1=RAW_RGB, 2=H264)
-5       3     uint8[3] _pad
-8       4     int32    image_w
-12      4     int32    image_h
-16      4     uint32   image_payload_len  (K bytes)
-```
+- `protocol_version` string is still `agx-sim/v0`
+- boom position and speed still use `BoomPrismatics[0]`
+- `swing_position_norm` exists, but its normalization window is scene/config dependent
+- transport has framing and CRC32, but no reconnect/session layer above TCP
 
-Python struct format: `"<fBxxxiiI"`  Total: 20 bytes
+## 14. Versioning
 
-**Variable part — image bytes (K bytes):**
-```
-uint8[K]  image_payload  (raw RGB: K = image_w * image_h * 3)
-```
-
----
-
-## 8) ImageFormat enum
-
-| Name | uint8 value |
-|---|---|
-| `NONE`    | 0 |
-| `RAW_RGB` | 1 |
-| `H264`    | 2 |
-
-V0 must use `RAW_RGB`. H264 is reserved for V1.
-
----
-
-## 9) Step-Ack Hard Contract
-
-1. Python sends exactly one `STEP_REQ` and blocks.
-2. Unity calls `DoStep()` exactly once (N internal substeps are allowed, but **exposed as 1 step externally**).
-3. Unity sends exactly one `STEP_RESP` with **the same `step_id`**.
-4. Python's `client.step()` **raises `ProtocolError`** if `STEP_RESP.step_id != STEP_REQ.step_id`.
-5. `step_id` must be monotonically increasing per connection. Start at 0 on each RESET.
-
----
-
-## 10) State vector ordering (LOCKED, V0)
-
-### qpos (length 3, float32, range [0, 1])
-```
-index 0: boom_position_norm   (from BoomPrismatics[0])
-index 1: stick_position_norm
-index 2: bucket_position_norm
-```
-
-### qvel (length 4, float32, physical units)
-```
-index 0: swing_speed
-index 1: boom_speed           (from BoomPrismatics[0])
-index 2: stick_speed
-index 3: bucket_speed
-```
-
-### env_state (length M, float32)
-```
-index 0: mass_in_bucket       (see constants.yaml for units/threshold)
-```
-
----
-
-## 11) Versioning Rules
-
-| Change | Required action |
-|---|---|
-| Add optional JSON field to GET_INFO_RESP | No version bump needed |
-| Add new message type | Bump `version` (header field) + joint review |
-| Change vector ordering or dimension | Bump `version` + joint review + schema version bump |
-| Change image format flag semantics | Bump `version` + joint review |
-| Remove a field | **NOT ALLOWED without deprecation cycle** |
-
-Current version: **1**
+- Header `version = 1` is the wire-header version
+- Current logical protocol string is `agx-sim/v0`
+- Changing required field layout, vector ordering, or dimensions requires a
+  joint version bump and review

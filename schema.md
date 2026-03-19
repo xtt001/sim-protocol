@@ -1,15 +1,16 @@
 # schema.md — HDF5 Episode Dataset Schema v1.1
 
-**Repo:** sim-protocol (Repo C — shared)  
-**Last updated:** 2026-03-18  
-**Owner:** joint (Unity/AGX team + Python/testbed team)  
-**Rule:** **Add-only.** Never remove or rename existing datasets/groups. Increment `schema_version` when any new *required* field is introduced.
+Repo: sim-protocol (Repo C - shared)
+Last updated: 2026-03-19
+Owner: joint (Unity/AGX team + Python/testbed team)
+Rule: add-only. Never remove or rename existing datasets/groups.
 
----
+This document is aligned to the current Repo A recorder/backend behavior and the
+current Repo B observation contract.
 
-## 1) File layout
+## 1. File Layout
 
-```
+```text
 episode_XXXX.hdf5
 ├── metadata/
 ├── timestamps/
@@ -24,201 +25,185 @@ episode_XXXX.hdf5
 └── rewards
 ```
 
----
+## 2. /metadata
 
-## 2) /metadata (HDF5 attributes on the root group)
+Stored as HDF5 attributes under `/metadata`.
 
-### Required (v1.1)
+### Required for new AGX V0 datasets
 
-| Attribute | Type | Value / Example |
-|---|---|---|
-| `schema_version` | str | `"1.1"` |
-| `task_name` | str | `"agx_excavation_teleop"` |
-| `sim_backend` | str | `"agxunity"` |
-| `seed` | int32 | `-1` (unused in V0) |
-| `param_version` | str | `"v0"` |
-| `timestamp` | str | ISO 8601, e.g. `"2026-03-18T14:00:00"` |
-| `control_hz` | int32 | `50` |
-| `dt` | float32 | `0.02` |
-| `action_semantics` | str | `"actuator_speed_cmd"` |
-| `camera_names` | str[] / JSON str | `["fpv"]` |
-| `camera_width` | int32 | e.g. `320` |
-| `camera_height` | int32 | e.g. `240` |
-| `image_format` | str | `"raw_rgb"` (V0); `"h264"` (V1+) |
+| Attribute | Type | Notes |
+| --- | --- | --- |
+| `schema_version` | string | `"1.1"` |
+| `task_name` | string | example: `"agx_excavation_teleop"` |
+| `sim_backend` | string | `"agxunity"` |
+| `seed` | int32 | reset seed used for the episode |
+| `param_version` | string | example: `"v0"` |
+| `timestamp` | string | ISO 8601 |
+| `control_hz` | int32 | currently `50` |
+| `dt` | float32 | currently `0.02` |
+| `action_semantics` | string | `"actuator_speed_cmd"` |
+| `camera_names` | string | current Repo A stores comma-separated names |
+| `image_format` | string | `"raw_rgb"` in V0 |
 
 ### Optional / recommended
 
 | Attribute | Type | Notes |
-|---|---|---|
-| `operator_id` | str | who drove |
-| `session_id` | str | grouping key |
-| `deadzone` | float32[4] | per-axis deadzone values |
-| `scale` | float32[4] | per-axis speed scale |
-| `limit` | float32[4] | per-axis hard clip |
-| `protocol_version` | int32 | from GET_INFO_RESP |
-| `reset_mode` | str | `"baseline_fixed"` (V0) |
+| --- | --- | --- |
+| `protocol_version` | string | example: `"agx-sim/v0"` |
+| `camera_width` | int32 | runtime-specific; not yet guaranteed in every writer |
+| `camera_height` | int32 | runtime-specific; not yet guaranteed in every writer |
+| `operator_id` | string | teleop operator identity |
+| `session_id` | string | grouping key |
+| `deadzone` | float32[4] | per-axis teleop deadzone |
+| `scale` | float32[4] | per-axis teleop scale |
+| `limit` | float32[4] | per-axis teleop clip |
+| `reset_mode` | string | example: `"baseline_fixed"` |
+| `success` | int32/bool | post-hoc label |
+| `n_steps` | int32 | convenience metadata |
 
----
+## 3. /timestamps
 
-## 3) /timestamps (required)
-
-| Dataset | Shape | dtype | Notes |
-|---|---|---|---|
-| `step_id` | `(T,)` | int64 | monotonically increasing; matches STEP_RESP.step_id |
-| `step_ns` | `(T,)` | int64 | wall-clock ns at record time (optional but recommended) |
-
----
-
-## 4) /action_source (required)
-
-Records *who or what* generated each action.
-
-| Dataset | Shape | dtype | Values |
-|---|---|---|---|
-| `type` | `(T,)` | str (variable-length) | `"teleop"` \| `"policy"` \| `"scripted"` |
-| `id`   | `(T,)` | str (variable-length) | `"joystick"` \| `"keyboard"` \| `"policy:act@ckpt_path"` |
-
-Optional:
+For new AGX V0 datasets:
 
 | Dataset | Shape | dtype | Notes |
-|---|---|---|---|
-| `latency_ms` | `(T,)` | float32 | action generation latency |
+| --- | --- | --- | --- |
+| `step_id` | `(T,)` | int64 | required; matches `STEP_RESP.step_id` |
+| `step_ns` | `(T,)` | int64 | recommended; wall-clock record timestamp |
 
----
+## 4. /action_source
 
-## 5) /observations (required)
+For new AGX V0 datasets:
 
-### 5.1 qpos — joint positions
+| Dataset | Shape | dtype | Notes |
+| --- | --- | --- | --- |
+| `type` | `(T,)` | variable-length string | `"teleop"`, `"policy"`, `"scripted"` |
+| `id` | `(T,)` | variable-length string | `"joystick"`, `"keyboard"`, or policy identifier |
+
+Optional future extension:
+- `latency_ms: (T,) float32`
+
+## 5. /observations
+
+### 5.1 qpos
 
 | Property | Value |
-|---|---|
+| --- | --- |
 | Dataset path | `/observations/qpos` |
-| Shape | `(T, 3)` |
+| Shape | `(T, 4)` |
 | dtype | float32 |
-| Range | [0, 1] (normalized) |
+| Range | normalized `[0, 1]` |
 
-**Column ordering (LOCKED, V0):**
+Column order:
+```text
+col 0: swing_position_norm
+col 1: boom_position_norm
+col 2: stick_position_norm
+col 3: bucket_position_norm
 ```
-col 0: boom_position_norm   (from BoomPrismatics[0])
-col 1: stick_position_norm
-col 2: bucket_position_norm
-```
 
-Note: swing_position_norm is **not available in V0** (omitted entirely).
+Notes:
+- `swing_position_norm` is present in the current Unity implementation
+- its exact physical interpretation depends on the configured normalization
+  window and should not be read as a true hard joint-limit mapping
+- boom values currently come from `BoomPrismatics[0]`
 
-### 5.2 qvel — actuator speeds
+### 5.2 qvel
 
 | Property | Value |
-|---|---|
+| --- | --- |
 | Dataset path | `/observations/qvel` |
 | Shape | `(T, 4)` |
 | dtype | float32 |
-| Units | physical units (not normalized) |
+| Units | runtime-reported actuator speed units |
 
-**Column ordering (LOCKED, V0):**
-```
+Column order:
+```text
 col 0: swing_speed
-col 1: boom_speed    (from BoomPrismatics[0])
+col 1: boom_speed
 col 2: stick_speed
 col 3: bucket_speed
 ```
 
-### 5.3 env_state — environment signals
+### 5.3 env_state
 
 | Property | Value |
-|---|---|
+| --- | --- |
 | Dataset path | `/observations/env_state` |
 | Shape | `(T, M)` |
 | dtype | float32 |
 
-**Column ordering (V0, M=1):**
-```
-col 0: mass_in_bucket   (units: see constants.yaml)
+Current V0 order:
+```text
+col 0: mass_in_bucket_kg
 ```
 
-Additional columns may be appended in future versions. Do not rely on M being fixed.
+Additional columns may be appended in future versions. Clients must not assume
+`M` is permanently fixed.
 
-### 5.4 images/fpv — first-person camera
+### 5.4 images/fpv
 
 | Property | Value |
-|---|---|
+| --- | --- |
 | Dataset path | `/observations/images/fpv` |
 | Shape | `(T, H, W, 3)` |
 | dtype | uint8 |
 | Channel order | RGB |
-| V0 source | raw RGB from RenderTexture |
+| Row order | top-to-bottom |
+| V0 transport | raw RGB bytes |
 
-Future: `/observations/images/fpv_h264` will store variable-length encoded bytes + an index table if H.264 transport is adopted. The `fpv` dataset will remain for backward compatibility.
+`H` and `W` are runtime-dependent and come from the Unity camera descriptor.
 
----
-
-## 6) /action (required)
+## 6. /action
 
 | Property | Value |
-|---|---|
+| --- | --- |
 | Dataset path | `/action` |
 | Shape | `(T, 4)` |
 | dtype | float32 |
-| Range | [-1, 1] (normalized, post-deadzone, post-scale) |
+| Range | normalized `[-1, 1]` after deadzone and scaling |
 
-**Column ordering (LOCKED, V0):**
-```
+Column order:
+```text
 col 0: swing_speed_cmd
 col 1: boom_speed_cmd
 col 2: stick_speed_cmd
 col 3: bucket_speed_cmd
 ```
 
-These are the **post-deadzone, post-scale** commands exactly as sent via STEP_REQ. Replay must produce identical AGX behavior.
+These are the exact commands sent through `STEP_REQ`.
 
----
-
-## 7) /rewards (optional but recommended)
+## 7. /rewards
 
 | Property | Value |
-|---|---|
+| --- | --- |
 | Dataset path | `/rewards` |
 | Shape | `(T,)` |
 | dtype | float32 |
 
-V0: set to `0.0` — success is computed by the evaluator from `env_state`.
+Current V0 behavior:
+- usually `0.0`
+- success is determined later from `env_state`
 
----
+## 8. Replay Validity Requirements
 
-## 8) /labels (optional, future)
+A recorded episode is valid iff:
+1. replaying `action[t]` through the same backend produces a visually consistent rollout
+2. `step_id` is monotonic with no gaps
+3. replayed `qpos` stays within a jointly accepted tolerance of recorded `qpos`
 
-Reserved for future use:
+The exact `qpos` tolerance is still a team-defined QA threshold and is not
+locked here yet.
 
-| Dataset | dtype | Notes |
-|---|---|---|
-| `success` | bool | computed after eval |
-| `fail_code` | str | reason for failure |
-| `phase` | str | e.g. `"dig"`, `"lift"`, `"dump"` |
+## 9. Version History
 
----
+| Version | Notes |
+| --- | --- |
+| `1.0` | legacy datasets with older observation/image layout |
+| `1.1` | adds `timestamps`, `action_source`, `env_state`, `images/fpv`, and new metadata fields |
 
-## 9) Replay validity requirement
+## 10. Open Items
 
-A dataset episode is **valid** iff:
-1. Replaying `action[t]` through the same backend step-by-step produces a visually consistent rollout.
-2. Replayed `qpos` stays within tolerance of recorded `qpos`:
-   - mean absolute error per joint < 0.05 (to be finalized once hardware variance is measured)
-3. `step_id` sequence is monotonically increasing with no gaps.
-
----
-
-## 10) Version history
-
-| Version | Date | Changes |
-|---|---|---|
-| 1.0 | (legacy) | qpos, qvel, images/top, action, rewards, metadata |
-| 1.1 | 2026-03-18 | + timestamps/step_id, timestamps/step_ns, action_source/type, action_source/id, observations/env_state, observations/images/fpv, metadata: control_hz, dt, action_semantics, camera_names, image_format |
-
----
-
-## 11) Add-only policy
-
-- Append new datasets/groups freely.
-- **Never rename or remove** existing datasets.
-- Increment `schema_version` for any new *required* field.
-- Old readers must not crash when encountering unknown datasets (read them as `None` / skip).
+- Decide whether camera width and height become required metadata or remain
+  derivable from the image dataset shape.
+- Add teleop deadzone/scale/limit metadata consistently from Repo A.
+- Finalize any post-hoc success labels once the evaluator contract is closed.

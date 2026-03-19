@@ -1,73 +1,51 @@
-# eval_suite_v0.yaml — AGX Excavation Evaluation Suite (V0)
+# eval_suite_v0.yaml — Shared AGX Excavation Eval Suite Skeleton
 #
-# Repo: sim-protocol (Repo C — shared)
-# Last updated: 2026-03-18
-# Rule: Do NOT silently change seeds, scenarios, or success thresholds — doing
-#       so breaks comparability across runs. Create eval_suite_v1.yaml instead.
-# ─────────────────────────────────────────────────────────────────────────────
+# Repo: sim-protocol (Repo C - shared)
+# Last updated: 2026-03-19
+# Status: aligned to current known Repo B / Repo A behavior.
+# Unsettled values remain explicit TODOs.
 
-suite_name:    "agx_excavation_v0"
+suite_name: "agx_excavation_v0"
 suite_version: "v0"
+protocol_version: "agx-sim/v0"
 schema_version: "1.1"
 
-# ── Success rule ─────────────────────────────────────────────────────────────
-# Primary: mass-based (spec §8)
 success:
-  rule:         "mass_in_bucket"        # "mass_in_bucket" | "posture_fallback"
-  mass_thresh:  1.0                     # kg; TODO: replace with team-defined value
-  hold_steps:   25                      # consecutive steps = 0.5s @ 50Hz
-  env_state_idx: 0                      # mass_in_bucket is index 0 in env_state
+  rule: "mass_in_bucket_kg_hold"
+  mass_thresh_kg: null
+  hold_steps: 25
+  env_state_signal: "mass_in_bucket_kg"
+  env_state_index: 0
+  note: "mass_thresh_kg is joint-team TBD."
 
-# ── Rollout parameters ────────────────────────────────────────────────────────
 rollout:
-  episode_len:  500                     # max steps per rollout (10s @ 50Hz)
-  num_rollouts: 10                      # increase to 50 for final eval
+  control_hz: 50
+  dt: 0.02
+  episode_len: 500
+  num_rollouts_default: 10
+  num_rollouts_final: 50
 
-# ── Scenarios (fixed, V0) ────────────────────────────────────────────────────
-# Each scenario defines a reset configuration.
-# V0 uses baseline_fixed reset mode (no seeded terrain randomisation).
 scenarios:
-  - id:               "s0_baseline"
-    description:      "Flat terrain, excavator at default pose, empty bucket"
-    seeds:            [0, 1, 2]
-    reset_terrain:    false
-    reset_pose:       true
-    scenario_id_str:  ""                # empty = Unity uses default scene
+  - id: "s0_baseline"
+    description: "Current baseline fixed reset in the Unity scene."
+    seeds: [0, 1, 2]
+    reset_terrain: false
+    reset_pose: true
+    scenario_id: ""
+    notes:
+      - "Use current Unity default scene content."
+      - "Broader terrain/scenario coverage belongs in a later eval suite revision."
 
-  # Uncomment and extend for broader evaluation:
-  # - id:             "s1_terrain_a"
-  #   description:    "Pre-loaded terrain variant A"
-  #   seeds:          [0, 1, 2]
-  #   reset_terrain:  true
-  #   reset_pose:     true
-  #   scenario_id_str: "terrain_a"
-
-# ── Output artifacts ─────────────────────────────────────────────────────────
 artifacts:
-  metrics_file:    "metrics.json"       # success_rate, mean_reward, etc.
-  summary_csv:     "summary.csv"        # per-rollout rows
-  video_dir:       "videos/"            # rollout_XXX.mp4
-  save_video:      true
-  highlight_video: true                 # best-rollout clip
+  metrics_file: "metrics.json"
+  summary_csv: "summary.csv"
+  video_dir: "videos/"
+  save_video: true
 
-# ── Determinism ───────────────────────────────────────────────────────────────
 determinism:
-  reset_mode: "baseline_fixed"          # V0; no terrain randomisation
+  reset_mode: "baseline_fixed"
   note: >
-    V0 eval requires identical initial conditions per seed.
-    Unity must return the same qpos on RESET with the same seed.
-    Full seeded terrain randomisation is planned for v1.
+    V0 assumes repeatable reset pose and empty-bucket state.
+    Full seeded terrain determinism is not locked yet.
 
-# ── Comparison baseline ───────────────────────────────────────────────────────
-# Fill in after first successful closed-loop result.
 baselines: {}
-# Example:
-# baselines:
-#   dummy_policy:
-#     success_rate: 0.0
-#     mean_reward: 0.0
-#     date: "2026-03-18"
-#   act_v0_ckpt_001:
-#     success_rate: 0.3
-#     mean_reward: 0.15
-#     date: "2026-03-25"

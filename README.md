@@ -1,97 +1,81 @@
-# sim-protocol — Shared Protocol & Schema (Repo C)
+# sim-protocol — Shared Protocol and Schema (Repo C)
 
-**Owner:** joint (Unity/AGX team + Python/testbed team)  
-**Rule:** This repo is the **single source of truth** for all inter-team contracts.  
-Do not duplicate or override these definitions in Repo A or Repo B.
+Owner: joint (Unity/AGX team + Python/testbed team)
+Rule: this repo is the shared contract surface for Repo A and Repo B.
 
----
+Current status:
+- Repo C has been updated to match the current Repo B binary step-ack protocol.
+- Anything still uncertain in Repo B is marked provisional here instead of being
+  guessed or frozen as a fake constant.
 
-## What this repo contains
+## Contents
 
 | File | Purpose |
-|---|---|
-| [protocol.md](protocol.md) | Full binary wire protocol spec (V0): header, message types, STEP_REQ/RESP field layout, step-ack contract, versioning rules |
-| [schema.md](schema.md) | HDF5 episode dataset schema v1.1: all datasets, shapes, dtypes, column orderings, add-only policy |
-| [constants.yaml](constants.yaml) | Single source of truth for all numeric constants: MSG_TYPES, vector dims, action/qpos/qvel ordering, env_state indices, success thresholds, camera params |
-| [eval_suite_v0.yaml](eval_suite_v0.yaml) | Fixed evaluation suite: scenarios, seeds, reset flags, success rule parameters |
+| --- | --- |
+| [protocol.md](protocol.md) | Wire protocol for `GET_INFO`, `RESET`, `STEP` |
+| [schema.md](schema.md) | HDF5 episode schema v1.1 |
+| [constants.yaml](constants.yaml) | Shared constants and ordering definitions |
+| [eval_suite_v0.yaml](eval_suite_v0.yaml) | Fixed eval suite skeleton for AGX excavation |
 
----
+## Quick Reference
 
-## Quick reference (most important locked constants)
-
-### Action vector (length 4, `[-1, 1]`)
-```
-index 0: swing_speed_cmd
-index 1: boom_speed_cmd
-index 2: stick_speed_cmd
-index 3: bucket_speed_cmd
+Action vector:
+```text
+[swing_speed_cmd, boom_speed_cmd, stick_speed_cmd, bucket_speed_cmd]
 ```
 
-### qpos (length 3, `[0, 1]`)
-```
-index 0: boom_position_norm
-index 1: stick_position_norm
-index 2: bucket_position_norm
+qpos vector:
+```text
+[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]
 ```
 
-### qvel (length 4, physical units)
-```
-index 0: swing_speed
-index 1: boom_speed
-index 2: stick_speed
-index 3: bucket_speed
+qvel vector:
+```text
+[swing_speed, boom_speed, stick_speed, bucket_speed]
 ```
 
-### env_state (length ≥ 1)
-```
-index 0: mass_in_bucket
-```
-
-### Success rule (spec §8)
-```
-success if mass_in_bucket >= 1.0  for 25 consecutive steps  (0.5s @ 50Hz)
+env_state:
+```text
+index 0 = mass_in_bucket_kg
 ```
 
-### Step-ack hard rule
-```
-STEP_RESP.step_id must equal STEP_REQ.step_id — no exceptions.
-```
-
----
-
-## Version bump policy
-
-| What changed | Action required |
-|---|---|
-| New optional JSON field in GET_INFO_RESP | No bump needed |
-| New optional HDF5 dataset | Increment `schema_version` attribute |
-| New *required* HDF5 dataset | Increment `schema_version` + announce to both teams |
-| New message type | Bump `protocol.version` + joint review |
-| Change vector ordering or dims | Bump `protocol.version` + `schema_version` + joint review |
-| Remove any field | **NOT ALLOWED** without deprecation cycle |
-
----
-
-## How to use constants.yaml
-
-**Python (Repo A):**
-```python
-import yaml
-C = yaml.safe_load(open("constants.yaml"))
-ACTION_DIM  = C["action"]["dim"]         # 4
-QPOS_ORDER  = C["qpos"]["order"]         # {0: "boom_position_norm", ...}
-MASS_THRESH = C["success"]["mass_thresh"] # 1.0
+Step-ack hard rule:
+```text
+STEP_RESP.step_id must equal STEP_REQ.step_id.
 ```
 
-**C# (Repo B):**  
-Parse with YamlDotNet, or hardcode the same values and keep this file as the
-written reference that both sides agree on.
+## What Is Settled
 
----
+- Transport is binary framed TCP, not JSON.
+- Header size is 16 bytes with CRC32 over payload bytes.
+- `GET_INFO_RESP` is a binary field sequence with string arrays and camera
+  descriptors.
+- `qpos` is currently 4D in the running Unity implementation.
+- FPV transport is raw RGB in V0.
+- Action semantics are `actuator_speed_cmd`.
 
-## TODOs (fill in once Unity team confirms)
+## What Is Still Provisional
 
-- [ ] Confirm `camera_width` × `camera_height` (currently 320×240 placeholder)
-- [ ] Confirm `mass_in_bucket` units and appropriate `mass_thresh` value
-- [ ] Confirm `qvel` physical unit scale (raw AGX constraint speed?)
-- [ ] Confirm whether `camera_fps` will always match `control_hz` or can differ
+- The exact semantic range for `swing_position_norm` is not a hard physical
+  limit. It depends on the configured Unity normalization window.
+- `mass_thresh_kg` for success is still joint-team TBD.
+- FPV width, height, and fps are runtime-advertised by `GET_INFO_RESP`; they
+  should not be treated as globally fixed constants yet.
+- Boom position/speed still comes from `BoomPrismatics[0]` in the current
+  Unity implementation.
+
+## Versioning Rules
+
+| Change | Required action |
+| --- | --- |
+| New optional response field | Keep backward compatible; no version bump required |
+| New required wire field | Bump protocol version and review jointly |
+| Change vector ordering or dimension | Bump protocol version and schema version |
+| New required HDF5 field | Bump schema version |
+| Remove an existing field | Not allowed without deprecation plan |
+
+## Open Follow-Up
+
+- Replace placeholder GitHub handles in `CODEOWNERS`.
+- Wire Repo A to consume Repo C definitions instead of only mirroring Repo B.
+- Revisit success thresholds and camera metadata once Repo B calibration is final.

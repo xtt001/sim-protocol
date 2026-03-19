@@ -1,131 +1,105 @@
-# constants.yaml — AGXUnity ↔ Python Shared Constants (V0)
+# constants.yaml — Shared AGXUnity / Python Constants
 #
-# Repo: sim-protocol (Repo C — shared)
-# Last updated: 2026-03-18
-# Rule: Any change to ordering, dimensions, or numeric values requires a joint
-#       PR review + version bump in the affected protocol/schema sections.
-#
-# How to use:
-#   Python:  yaml.safe_load(open("constants.yaml"))
-#   C#:      parse with YamlDotNet or equivalent; or hardcode the same values
-#            keeping this file as the single source of truth.
-# ─────────────────────────────────────────────────────────────────────────────
+# Repo: sim-protocol (Repo C - shared)
+# Last updated: 2026-03-19
+# Status: aligned to the current Repo B implementation where values are known.
+# Unsettled values are left null or explicitly noted as provisional.
 
-# ── Protocol wire constants ───────────────────────────────────────────────────
 protocol:
-  version: 1
-  magic:   0xA6A6A6A6      # uint32, little-endian
-  header_size: 16          # bytes
+  header_version: 1
+  logical_version: "agx-sim/v0"
+  magic: 0xA6A6A6A6
+  header_size_bytes: 16
+  max_payload_bytes: 134217728
 
-  # Message type codes (uint16)
   msg_types:
-    GET_INFO_REQ:  1
+    GET_INFO_REQ: 1
     GET_INFO_RESP: 2
-    RESET_REQ:     3
-    RESET_RESP:    4
-    STEP_REQ:      5
-    STEP_RESP:     6
+    RESET_REQ: 3
+    RESET_RESP: 4
+    STEP_REQ: 5
+    STEP_RESP: 6
 
-  # Image format codes (uint8 in STEP_RESP)
-  image_format:
-    NONE:    0
-    RAW_RGB: 1
-    H264:    2
+  image_pixel_format: "raw_rgb"
+  image_row_order: "top_to_bottom"
 
-  # V0 payload sizes (bytes; informational, do not use as sole validation)
-  payload_sizes:
-    step_req_fixed:        32   # "<qffffq"
-    step_resp_fixed_part1: 40   # "<qfffffffI"
-    step_resp_fixed_part2: 20   # "<fBxxxiiI"
-    reset_req_fixed:       12   # "<iBBxxI"
-    reset_resp:            16   # "<BxxxffI"
-
-# ── Control loop parameters ───────────────────────────────────────────────────
 control:
-  hz:  50        # control rate (Hz)
-  dt:  0.02      # timestep (seconds) = 1 / hz
+  hz: 50
+  dt: 0.02
 
-# ── Action vector (LOCKED, V0) ────────────────────────────────────────────────
 action:
   dim: 4
   semantics: "actuator_speed_cmd"
-  range: [-1.0, 1.0]          # normalized, post-deadzone, post-scale
-  order:                       # index → signal name
+  range: [-1.0, 1.0]
+  order:
     0: swing_speed_cmd
     1: boom_speed_cmd
     2: stick_speed_cmd
     3: bucket_speed_cmd
 
-  # Default teleop scaling (from teleop_v0.yaml — informational copy)
-  # Override per session in run config; store actual values in HDF5 metadata.
-  defaults:
-    deadzone: [0.05, 0.05, 0.05, 0.05]   # per-axis, applied before scale
-    scale:    [1.0,  1.0,  1.0,  1.0]    # speed multiplier
-    limit:    [1.0,  1.0,  1.0,  1.0]    # hard clip after scale
-    invert:   [false, true, false, true]  # negate axis (Y axes typically inverted)
+  teleop_defaults:
+    deadzone: [0.05, 0.05, 0.05, 0.05]
+    scale: [1.0, 1.0, 1.0, 1.0]
+    limit: [1.0, 1.0, 1.0, 1.0]
+    invert: [false, true, false, true]
 
-# ── qpos vector (LOCKED, V0) ──────────────────────────────────────────────────
 qpos:
-  dim: 3
-  range: [0.0, 1.0]           # normalized position
-  order:                       # index → signal name
-    0: boom_position_norm      # from BoomPrismatics[0]
-    1: stick_position_norm
-    2: bucket_position_norm
+  dim: 4
+  range: [0.0, 1.0]
+  order:
+    0: swing_position_norm
+    1: boom_position_norm
+    2: stick_position_norm
+    3: bucket_position_norm
 
   notes:
-    - "swing_position_norm is NOT available in V0 and is omitted."
-    - "boom uses BoomPrismatics[0] only; expanding to multiple prismatics requires a version bump."
+    - "swing_position_norm is present in the current Unity implementation."
+    - "Its normalization window is scene/config dependent and not a true hard-limit definition."
+    - "boom values currently come from BoomPrismatics[0]."
 
-# ── qvel vector (LOCKED, V0) ──────────────────────────────────────────────────
 qvel:
   dim: 4
-  units: "physical"            # not normalized
-  order:                       # index → signal name
+  units: "runtime_reported_actuator_speed"
+  order:
     0: swing_speed
-    1: boom_speed              # from BoomPrismatics[0]
+    1: boom_speed
     2: stick_speed
     3: bucket_speed
 
-# ── env_state vector (V0) ────────────────────────────────────────────────────
 env_state:
-  dim: 1                       # minimum; may grow in future versions
-  order:                       # index → signal name
-    0: mass_in_bucket
+  order:
+    0: mass_in_bucket_kg
 
-  mass_in_bucket:
+  mass_in_bucket_kg:
     index: 0
-    units: "kg"                # TODO: confirm exact units with Unity team
-    notes: "AGX-simulated mass of excavated material held in the bucket."
+    units: "kg"
+    notes: "Current Unity contract uses env_state[0] for bucket mass."
 
-# ── Success rule (eval, spec §8) ─────────────────────────────────────────────
 success:
-  # Primary rule: mass-based
-  mass_thresh: 1.0             # kg; TODO: replace with team-defined value
-  hold_steps:  25              # consecutive steps = 0.5s @ 50Hz
-  env_state_idx: 0             # index of mass_in_bucket in env_state
+  rule: "mass_in_bucket_kg_hold"
+  mass_thresh_kg: null
+  hold_steps: 25
+  env_state_signal: "mass_in_bucket_kg"
+  env_state_index: 0
+  note: "Threshold is not finalized yet; do not treat null as 1.0 by default."
 
-  # Fallback (if mass_in_bucket unavailable):
-  #   posture-based thresholds on qpos + qvel stability for hold_steps
-  #   (not yet implemented — define if needed)
-
-# ── Camera definitions (V0) ──────────────────────────────────────────────────
 cameras:
   fpv:
-    name:         "fpv"
-    description:  "First-person (driver-view) camera; required in V0"
-    width:        320          # TODO: confirm resolution with Unity team
-    height:       240          # TODO: confirm resolution with Unity team
-    fps:          50           # matches control_hz
-    format_v0:    "raw_rgb"    # uint8 RGB, H×W×3
-    format_v1:    "h264"       # future; optional
+    required: true
+    pixel_format: "raw_rgb"
+    row_order: "top_to_bottom"
+    descriptor_from_get_info: true
+    width: null
+    height: null
+    fps: null
+    notes:
+      - "Dimensions and fps are runtime-advertised by GET_INFO_RESP."
 
-# ── HDF5 schema version ───────────────────────────────────────────────────────
 schema:
   version: "1.1"
 
-# ── Reset mode (V0) ───────────────────────────────────────────────────────────
 reset:
-  mode: "baseline_fixed"       # V0: fixed initial pose + empty bucket
+  supports_reset_pose: true
+  mode: "baseline_fixed"
   future_modes:
-    - "seeded_deterministic"   # full seed control (future)
+    - "seeded_deterministic"
