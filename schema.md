@@ -8,6 +8,14 @@ Rule: add-only. Never remove or rename existing datasets/groups.
 This document is aligned to the current Repo A recorder/backend behavior and the
 current Repo B observation contract.
 
+Important boundary:
+- This schema defines the offline dataset artifact used for training, replay,
+  and evaluation.
+- It is not the live interaction protocol between Repo A and Repo B.
+- Repo B may also emit local `metadata.json` / `steps.jsonl` / raw RGB exports
+  for debugging or conversion, but those files are auxiliary and are not the
+  canonical shared dataset contract.
+
 ## 1. File Layout
 
 ```text
@@ -205,5 +213,6 @@ locked here yet.
 
 - Decide whether camera width and height become required metadata or remain
   derivable from the image dataset shape.
-- Add teleop deadzone/scale/limit metadata consistently from Repo A.
+- Decide whether Repo B's local JSON/RGB export gets an official conversion
+  path into this HDF5 schema.
 - Finalize any post-hoc success labels once the evaluator contract is closed.

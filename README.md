@@ -44,6 +44,12 @@ Step-ack hard rule:
 STEP_RESP.step_id must equal STEP_REQ.step_id.
 ```
 
+Contract boundary:
+- Live Repo A <-> Repo B interaction is the binary wire protocol in `protocol.md`.
+- Offline collected data is the HDF5 dataset contract in `schema.md`.
+- Repo B may emit local `metadata.json` / `steps.jsonl` / raw RGB sidecar files,
+  but those are auxiliary Unity-native exports, not the shared live contract.
+
 ## What Is Settled
 
 - Transport is binary framed TCP, not JSON.
@@ -53,12 +59,12 @@ STEP_RESP.step_id must equal STEP_REQ.step_id.
 - `qpos` is currently 4D in the running Unity implementation.
 - FPV transport is raw RGB in V0.
 - Action semantics are `actuator_speed_cmd`.
+- V0 success is `mass_in_bucket_kg >= 2.0` for `25` consecutive steps.
 
 ## What Is Still Provisional
 
 - The exact semantic range for `swing_position_norm` is not a hard physical
   limit. It depends on the configured Unity normalization window.
-- `mass_thresh_kg` for success is still joint-team TBD.
 - FPV width, height, and fps are runtime-advertised by `GET_INFO_RESP`; they
   should not be treated as globally fixed constants yet.
 - Boom position/speed still comes from `BoomPrismatics[0]` in the current
@@ -78,4 +84,7 @@ STEP_RESP.step_id must equal STEP_REQ.step_id.
 
 - Replace placeholder GitHub handles in `CODEOWNERS`.
 - Wire Repo A to consume Repo C definitions instead of only mirroring Repo B.
-- Revisit success thresholds and camera metadata once Repo B calibration is final.
+- Decide whether Repo B's local JSON/RGB episode export should get an official
+  conversion utility into the shared HDF5 schema.
+- Revisit the fixed `2.0 kg` success threshold only if the Unity scene/material
+  calibration changes materially.

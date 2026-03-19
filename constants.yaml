@@ -77,11 +77,11 @@ env_state:
 
 success:
   rule: "mass_in_bucket_kg_hold"
-  mass_thresh_kg: null
+  mass_thresh_kg: 2.0
   hold_steps: 25
   env_state_signal: "mass_in_bucket_kg"
   env_state_index: 0
-  note: "Threshold is not finalized yet; do not treat null as 1.0 by default."
+  note: "V0 default fixed from current Unity exports: above observed sub-kg noise and below the smallest clear scoop (~2.10775 kg)."
 
 cameras:
   fpv:
