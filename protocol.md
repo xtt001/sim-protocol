@@ -175,6 +175,9 @@ Current behavior:
 - when `reset_pose = true` and `reset_terrain = false`, Unity resets pose and
   counters without forcing a terrain height reset
 - when both flags are true, Unity performs the full scene reset path
+- when `reset_terrain = true`, Unity rebuilds the deformable terrain state so
+  dynamic soil mass/particles are cleared as part of reset, including particles
+  that were still trapped in the bucket
 - for step-ack serving, a successful reset also re-arms the machine controller
   engine so subsequent `STEP_REQ` actions take effect immediately
 - the current reset path prefers the current Unity scene reset service and only

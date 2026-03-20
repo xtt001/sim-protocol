@@ -74,6 +74,9 @@ Operational mapping:
   current Unity implementation; pose-only reset must not implicitly re-sculpt terrain.
 - Terrain reset is handled by Unity `ResetTerrain` / `SceneResetService`; the
   excavation metrics component is no longer part of the terrain reset path.
+- When `RESET_REQ.reset_terrain = true`, Unity is expected to rebuild the
+  deformable terrain state so bucket-trapped soil particles are cleared back to
+  the initial terrain baseline.
 - Pending step-ack requests are consumed on Unity `FixedUpdate`, keeping live
   step-ack teleop aligned with the advertised fixed simulation timestep.
 - V0 success is `mass_in_bucket_kg >= 2.0` at any point within the
