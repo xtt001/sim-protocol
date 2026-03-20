@@ -211,6 +211,8 @@ Current evaluator note:
 - success for V0 is not decided by this `reward` field
 - Repo A / Repo C currently compute success post-hoc from
   `env_state[0] = mass_in_bucket_kg`
+- current V0 MVP rule is: threshold reached at any point within the
+  `500`-step episode
 
 Image payload rules:
 - layout is row-major

@@ -76,12 +76,12 @@ env_state:
     notes: "Current Unity contract uses env_state[0] for bucket mass."
 
 success:
-  rule: "mass_in_bucket_kg_hold"
+  rule: "mass_in_bucket_kg_any_step"
   mass_thresh_kg: 2.0
-  hold_steps: 25
+  hold_steps: 1
   env_state_signal: "mass_in_bucket_kg"
   env_state_index: 0
-  note: "V0 default fixed from current Unity exports: above observed sub-kg noise and below the smallest clear scoop (~2.10775 kg)."
+  note: "V0 MVP rule: success if the bucket mass threshold is reached at any point within the 500-step stationary digging episode."
 
 cameras:
   fpv:

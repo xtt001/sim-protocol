@@ -52,6 +52,14 @@ Contract boundary:
 - V0 task scope is fixed-position / stationary digging only; drive / steer /
   track motion are intentionally excluded from the current shared action space.
 
+Operational mapping:
+- `tb-record-teleop --config testbed/configs/teleop_v0.yaml --input joystick --num-episodes 5`
+  is the current canonical Repo A data-collection command
+- `tb-train --config testbed/configs/act_agx_v0.yaml` is offline and consumes
+  only Repo A HDF5 episodes
+- `tb-eval --config testbed/configs/eval_agx_v0.yaml` is live and requires the
+  Unity step-ack server to be running
+
 ## What Is Settled
 
 - Transport is binary framed TCP, not JSON.
@@ -68,7 +76,8 @@ Contract boundary:
   excavation metrics component is no longer part of the terrain reset path.
 - Pending step-ack requests are consumed on Unity `FixedUpdate`, keeping live
   step-ack teleop aligned with the advertised fixed simulation timestep.
-- V0 success is `mass_in_bucket_kg >= 2.0` for `25` consecutive steps.
+- V0 success is `mass_in_bucket_kg >= 2.0` at any point within the
+  `500`-step episode.
 - `reward` is currently a placeholder `0.0`; success is computed post-hoc from
   the recorded `env_state` series.
 

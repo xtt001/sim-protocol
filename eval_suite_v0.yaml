@@ -11,9 +11,9 @@ protocol_version: "agx-sim/v0"
 schema_version: "1.1"
 
 success:
-  rule: "mass_in_bucket_kg_hold"
+  rule: "mass_in_bucket_kg_any_step"
   mass_thresh_kg: 2.0
-  hold_steps: 25
+  hold_steps: 1
   env_state_signal: "mass_in_bucket_kg"
   env_state_index: 0
   note: "Chosen from current Unity exported runs: above observed sub-kg noise and below the smallest clear scoop (~2.10775 kg)."

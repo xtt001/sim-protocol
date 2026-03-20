@@ -196,8 +196,8 @@ Current V0 behavior:
 - usually `0.0`
 - it is not the primary task signal for AGX V0
 - success is determined later from `env_state`
-- current V0 evaluator rule is `mass_in_bucket_kg >= 2.0` for `25`
-  consecutive steps
+- current V0 evaluator rule is `mass_in_bucket_kg >= 2.0` at any point within
+  the `500`-step episode
 
 ## 8. Replay Validity Requirements
 
