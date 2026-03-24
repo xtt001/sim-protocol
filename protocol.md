@@ -222,14 +222,19 @@ Current known values:
 - `qpos.len = 4`
 - `qvel.len = 4`
 - `env_state.len = 5`
-- `reward = 0.0`
+- `reward = deposited_mass_in_target_box_kg`
 - `image_format = "raw_rgb"` when FPV capture succeeds
 - `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
 
 Current evaluator note:
 - success for V0 is not decided by this `reward` field
+- Unity currently mirrors the main retained-target-mass success signal into
+  `reward` as a backup wire field:
+  `reward = deposited_mass_in_target_box_kg`
 - Repo A currently computes AGX excavation mission reward locally from
   `env_state`
+- clients should still prefer `env_state[3]` /
+  `deposited_mass_in_target_box_kg` as the source-of-truth named signal
 - current testbed reward sub-targets are:
   - meaningful bucket load acquisition
   - approaching the active target while loaded

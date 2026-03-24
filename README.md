@@ -40,6 +40,7 @@ index 0 = mass_in_bucket_kg
 index 1 = excavated_mass_kg
 index 2 = mass_in_target_box_kg
 index 3 = deposited_mass_in_target_box_kg
+index 4 = min_distance_to_target_m
 ```
 
 Step-ack hard rule:
@@ -82,10 +83,13 @@ Operational mapping:
   the initial terrain baseline.
 - Pending step-ack requests are consumed on Unity `FixedUpdate`, keeping live
   step-ack teleop aligned with the advertised fixed simulation timestep.
-- V0 success is `mass_in_bucket_kg >= 2.0` at any point within the
-  `500`-step episode.
-- `reward` is currently a placeholder `0.0`; success is computed post-hoc from
-  the recorded `env_state` series.
+- V0 success is target-centric:
+  `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
+  within the `1000`-step episode.
+- Unity `STEP_RESP.reward` now mirrors
+  `deposited_mass_in_target_box_kg` as a backup success proxy on the wire.
+- Repo A still computes the primary AGX mission reward locally from the
+  recorded `env_state` series.
 
 ## What Is Still Provisional
 
@@ -114,8 +118,8 @@ Operational mapping:
 - Wire Repo A to consume Repo C definitions instead of only mirroring Repo B.
 - Decide whether Repo B's local JSON/RGB episode export should get an official
   conversion utility into the shared HDF5 schema.
-- Revisit the fixed `2.0 kg` success threshold only if the Unity scene/material
-  calibration changes materially.
+- Revisit the current retained-target-mass success threshold only after more
+  pilot episodes are collected under the current scene/material setup.
 - Freeze a short written V0 benchmark task spec for start pose / terrain /
   episode packaging, since the control and evaluator contracts are now ahead of
   the task-sheet wording.

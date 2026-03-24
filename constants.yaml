@@ -72,11 +72,12 @@ env_state:
     1: excavated_mass_kg
     2: mass_in_target_box_kg
     3: deposited_mass_in_target_box_kg
+    4: min_distance_to_target_m
 
   mass_in_bucket_kg:
     index: 0
     units: "kg"
-    notes: "Current Unity contract keeps env_state[0] as bucket mass for backward-compatible V0 success logic."
+    notes: "Current bucket-contained dynamic material estimate."
 
   excavated_mass_kg:
     index: 1
@@ -86,20 +87,32 @@ env_state:
   mass_in_target_box_kg:
     index: 2
     units: "kg"
-    notes: "Current measured mass inside the fixed target box."
+    notes: "Current measured mass inside the currently active Unity dump target."
 
   deposited_mass_in_target_box_kg:
     index: 3
     units: "kg"
-    notes: "Cumulative positive increase of measured target-box mass within the current episode."
+    notes: "Reset-relative net retained mass inside the currently active Unity dump target."
+
+  min_distance_to_target_m:
+    index: 4
+    units: "m"
+    notes: "Approximate minimum distance between the current bucket body measurement volume and the active target measurement volume; -1.0 means unavailable."
+
+wire_reward:
+  field: "STEP_RESP.reward"
+  source_signal: "deposited_mass_in_target_box_kg"
+  units: "kg"
+  semantics: "backup_success_proxy"
+  note: "Unity mirrors retained target mass into the reward slot as a backup scalar. Repo A still computes the primary AGX mission reward locally."
 
 success:
-  rule: "mass_in_bucket_kg_any_step"
-  mass_thresh_kg: 2.0
-  hold_steps: 1
-  env_state_signal: "mass_in_bucket_kg"
-  env_state_index: 0
-  note: "V0 MVP rule: success if the bucket mass threshold is reached at any point within the 500-step stationary digging episode."
+  rule: "retained_target_mass_hold"
+  mass_thresh_kg: 100.0
+  hold_steps: 25
+  env_state_signal: "deposited_mass_in_target_box_kg"
+  env_state_index: 3
+  note: "Current V0 default: success if retained target mass stays above threshold for the configured hold window within the 1000-step stationary digging episode."
 
 cameras:
   fpv:

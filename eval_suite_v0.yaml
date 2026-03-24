@@ -16,19 +16,20 @@ observations:
     1: excavated_mass_kg
     2: mass_in_target_box_kg
     3: deposited_mass_in_target_box_kg
+    4: min_distance_to_target_m
 
 success:
-  rule: "mass_in_bucket_kg_any_step"
-  mass_thresh_kg: 2.0
-  hold_steps: 1
-  env_state_signal: "mass_in_bucket_kg"
-  env_state_index: 0
-  note: "Chosen from current Unity exported runs: above observed sub-kg noise and below the smallest clear scoop (~2.10775 kg)."
+  rule: "retained_target_mass_hold"
+  mass_thresh_kg: 100.0
+  hold_steps: 25
+  env_state_signal: "deposited_mass_in_target_box_kg"
+  env_state_index: 3
+  note: "Current default aligned with Repo A mission success: retained target mass must stay above threshold for the configured hold window."
 
 rollout:
   control_hz: 50
   dt: 0.02
-  episode_len: 500
+  episode_len: 1000
   num_rollouts_default: 10
   num_rollouts_final: 50
 

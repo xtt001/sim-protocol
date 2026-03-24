@@ -195,8 +195,10 @@ Current V0 task scope:
 
 Current V0 behavior:
 - Repo A stores the testbed-defined AGX excavation mission reward here
-- Unity wire `reward` is still a placeholder transport field, but the saved
-  HDF5 reward is no longer expected to stay at `0.0`
+- Unity wire `reward` now mirrors
+  `deposited_mass_in_target_box_kg` as a backup success proxy, but the saved
+  HDF5 reward is still the Repo A mission reward rather than the raw Unity
+  wire scalar
 - success remains target-centric and is determined from retained target mass
 - current default success rule is
   `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
