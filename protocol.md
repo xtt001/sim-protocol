@@ -31,7 +31,22 @@ Current observation semantics:
 - qpos order: `[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]`
 - qvel order: `[swing_speed, boom_speed, stick_speed, bucket_speed]`
 - env_state order:
-  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg]`
+  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m]`
+
+`mass_in_target_box_kg` semantics:
+- this field always refers to the currently active dump target selected by Unity
+- current main-scene targets are `ContainerBox` and `TruckBed`
+
+`deposited_mass_in_target_box_kg` semantics:
+- this field is reset-relative net retained mass inside the active target
+- Unity computes it as current measured target mass minus the reset baseline,
+  clamped to zero
+
+`min_distance_to_target_m` semantics:
+- this field is the approximate minimum distance between the bucket measurement
+  volume and the currently active target measurement volume
+- it is distance-based, not collision-based
+- `-1.0` means the distance could not be evaluated
 
 ## 2. Byte Order and Primitive Encoding
 
@@ -206,17 +221,29 @@ After the common response prefix, fields are written in this order:
 Current known values:
 - `qpos.len = 4`
 - `qvel.len = 4`
-- `env_state.len = 4`
+- `env_state.len = 5`
 - `reward = 0.0`
 - `image_format = "raw_rgb"` when FPV capture succeeds
 - `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
 
 Current evaluator note:
 - success for V0 is not decided by this `reward` field
-- Repo A / Repo C currently compute success post-hoc from
-  `env_state[0] = mass_in_bucket_kg`
-- current V0 MVP rule is: threshold reached at any point within the
-  `500`-step episode
+- Repo A currently computes AGX excavation mission reward locally from
+  `env_state`
+- current testbed reward sub-targets are:
+  - meaningful bucket load acquisition
+  - approaching the active target while loaded
+  - increasing retained mass inside the active target
+  - holding retained target mass above the configured success threshold
+- current default success rule is:
+  `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
+
+Current target-routing note:
+- `env_state[2]` and `env_state[3]` report the currently active target selected
+  by Unity runtime target routing
+- `env_state[4]` reports approximate minimum bucket-to-target distance in meters
+- target identity itself is currently scene/runtime configuration and is not
+  carried explicitly in the binary `STEP_RESP` payload
 
 Image payload rules:
 - layout is row-major
@@ -247,7 +274,8 @@ Image payload rules:
   mass_in_bucket_kg,
   excavated_mass_kg,
   mass_in_target_box_kg,
-  deposited_mass_in_target_box_kg
+  deposited_mass_in_target_box_kg,
+  min_distance_to_target_m
 ]
 ```
 

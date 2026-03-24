@@ -66,7 +66,7 @@ Stored as HDF5 attributes under `/metadata`.
 | `scale` | float32[4] | per-axis teleop scale |
 | `limit` | float32[4] | per-axis teleop clip |
 | `reset_mode` | string | example: `"baseline_fixed"` |
-| `success` | int32/bool | post-hoc label derived later from evaluator logic |
+| `success` | int32/bool | episode-level success label written by Repo A |
 | `n_steps` | int32 | convenience metadata |
 
 ## 3. /timestamps
@@ -146,6 +146,7 @@ col 0: mass_in_bucket_kg
 col 1: excavated_mass_kg
 col 2: mass_in_target_box_kg
 col 3: deposited_mass_in_target_box_kg
+col 4: min_distance_to_target_m
 ```
 
 ### 5.4 images/fpv
@@ -193,11 +194,12 @@ Current V0 task scope:
 | dtype | float32 |
 
 Current V0 behavior:
-- usually `0.0`
-- it is not the primary task signal for AGX V0
-- success is determined later from `env_state`
-- current V0 evaluator rule is `mass_in_bucket_kg >= 2.0` at any point within
-  the `500`-step episode
+- Repo A stores the testbed-defined AGX excavation mission reward here
+- Unity wire `reward` is still a placeholder transport field, but the saved
+  HDF5 reward is no longer expected to stay at `0.0`
+- success remains target-centric and is determined from retained target mass
+- current default success rule is
+  `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
 
 ## 8. Replay Validity Requirements
 
