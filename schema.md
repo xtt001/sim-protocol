@@ -1,7 +1,7 @@
 # schema.md — HDF5 Episode Dataset Schema v1.1
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-03-19
+Last updated: 2026-03-24
 Owner: joint (Unity/AGX team + Python/testbed team)
 Rule: add-only. Never remove or rename existing datasets/groups.
 
@@ -143,10 +143,10 @@ col 3: bucket_speed
 Current V0 order:
 ```text
 col 0: mass_in_bucket_kg
+col 1: excavated_mass_kg
+col 2: mass_in_target_box_kg
+col 3: deposited_mass_in_target_box_kg
 ```
-
-Additional columns may be appended in future versions. Clients must not assume
-`M` is permanently fixed.
 
 ### 5.4 images/fpv
 

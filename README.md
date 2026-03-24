@@ -37,6 +37,9 @@ qvel vector:
 env_state:
 ```text
 index 0 = mass_in_bucket_kg
+index 1 = excavated_mass_kg
+index 2 = mass_in_target_box_kg
+index 3 = deposited_mass_in_target_box_kg
 ```
 
 Step-ack hard rule:

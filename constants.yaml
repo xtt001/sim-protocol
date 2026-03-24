@@ -1,7 +1,7 @@
 # constants.yaml — Shared AGXUnity / Python Constants
 #
 # Repo: sim-protocol (Repo C - shared)
-# Last updated: 2026-03-19
+# Last updated: 2026-03-24
 # Status: aligned to the current Repo B implementation where values are known.
 # Unsettled values are left null or explicitly noted as provisional.
 
@@ -69,11 +69,29 @@ qvel:
 env_state:
   order:
     0: mass_in_bucket_kg
+    1: excavated_mass_kg
+    2: mass_in_target_box_kg
+    3: deposited_mass_in_target_box_kg
 
   mass_in_bucket_kg:
     index: 0
     units: "kg"
-    notes: "Current Unity contract uses env_state[0] for bucket mass."
+    notes: "Current Unity contract keeps env_state[0] as bucket mass for backward-compatible V0 success logic."
+
+  excavated_mass_kg:
+    index: 1
+    units: "kg"
+    notes: "Cumulative positive bucket-load gain within the current episode."
+
+  mass_in_target_box_kg:
+    index: 2
+    units: "kg"
+    notes: "Current measured mass inside the fixed target box."
+
+  deposited_mass_in_target_box_kg:
+    index: 3
+    units: "kg"
+    notes: "Cumulative positive increase of measured target-box mass within the current episode."
 
 success:
   rule: "mass_in_bucket_kg_any_step"

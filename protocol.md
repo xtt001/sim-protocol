@@ -1,7 +1,7 @@
 # protocol.md — AGXUnity <-> Python Step-Ack Wire Protocol
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-03-19
+Last updated: 2026-03-24
 Owner: joint (Unity/AGX team + Python/testbed team)
 
 This document is aligned to the current Repo B implementation.
@@ -30,7 +30,8 @@ Current control semantics:
 Current observation semantics:
 - qpos order: `[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]`
 - qvel order: `[swing_speed, boom_speed, stick_speed, bucket_speed]`
-- env_state order: `[mass_in_bucket_kg]`
+- env_state order:
+  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg]`
 
 ## 2. Byte Order and Primitive Encoding
 
@@ -205,7 +206,7 @@ After the common response prefix, fields are written in this order:
 Current known values:
 - `qpos.len = 4`
 - `qvel.len = 4`
-- `env_state.len = 1`
+- `env_state.len = 4`
 - `reward = 0.0`
 - `image_format = "raw_rgb"` when FPV capture succeeds
 - `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
@@ -242,7 +243,12 @@ Image payload rules:
 
 ### env_state
 ```text
-[mass_in_bucket_kg]
+[
+  mass_in_bucket_kg,
+  excavated_mass_kg,
+  mass_in_target_box_kg,
+  deposited_mass_in_target_box_kg
+]
 ```
 
 ## 11. Step-Ack Rules

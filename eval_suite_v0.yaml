@@ -1,7 +1,7 @@
 # eval_suite_v0.yaml — Shared AGX Excavation Eval Suite Skeleton
 #
 # Repo: sim-protocol (Repo C - shared)
-# Last updated: 2026-03-19
+# Last updated: 2026-03-24
 # Status: aligned to current known Repo B / Repo A behavior.
 # Unsettled values remain explicit TODOs.
 
@@ -9,6 +9,13 @@ suite_name: "agx_excavation_v0"
 suite_version: "v0"
 protocol_version: "agx-sim/v0"
 schema_version: "1.1"
+
+observations:
+  env_state_order:
+    0: mass_in_bucket_kg
+    1: excavated_mass_kg
+    2: mass_in_target_box_kg
+    3: deposited_mass_in_target_box_kg
 
 success:
   rule: "mass_in_bucket_kg_any_step"
