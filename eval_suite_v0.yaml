@@ -1,7 +1,7 @@
 # eval_suite_v0.yaml — Shared AGX Excavation Eval Suite Skeleton
 #
 # Repo: sim-protocol (Repo C - shared)
-# Last updated: 2026-03-24
+# Last updated: 2026-03-25
 # Status: aligned to current known Repo B / Repo A behavior.
 # Unsettled values remain explicit TODOs.
 
@@ -17,6 +17,12 @@ observations:
     2: mass_in_target_box_kg
     3: deposited_mass_in_target_box_kg
     4: min_distance_to_target_m
+    5: target_hard_collision_count
+    6: target_contact_max_normal_force_n
+
+reward:
+  hard_collision_penalty: 0.75
+  note: "Apply once per step when cumulative target_hard_collision_count increases. Success remains mass-based."
 
 success:
   rule: "retained_target_mass_hold"

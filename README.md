@@ -41,6 +41,8 @@ index 1 = excavated_mass_kg
 index 2 = mass_in_target_box_kg
 index 3 = deposited_mass_in_target_box_kg
 index 4 = min_distance_to_target_m
+index 5 = target_hard_collision_count
+index 6 = target_contact_max_normal_force_n
 ```
 
 Step-ack hard rule:
@@ -86,6 +88,17 @@ Operational mapping:
 - V0 success is target-centric:
   `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
   within the `1000`-step episode.
+- Repo B now exports active-target hard-collision summary metrics:
+  `target_hard_collision_count` and `target_contact_max_normal_force_n`.
+- `target_hard_collision_count` is cumulative within the episode.
+- one continuous excavator-vs-target contact session increments that count at
+  most once.
+- the count can increase again only after the excavator leaves the target and
+  later touches it again.
+- For `TruckBed`, the monitored collision body covers the full `BedTruck`
+  hard body, not only the bed/trunk area.
+- Repo A currently applies a fixed `0.75` per-step hard-collision penalty only
+  when the cumulative `target_hard_collision_count` increases on that step.
 - Unity `STEP_RESP.reward` now mirrors
   `deposited_mass_in_target_box_kg` as a backup success proxy on the wire.
 - Repo A still computes the primary AGX mission reward locally from the
@@ -123,3 +136,5 @@ Operational mapping:
 - Freeze a short written V0 benchmark task spec for start pose / terrain /
   episode packaging, since the control and evaluator contracts are now ahead of
   the task-sheet wording.
+- Decide later whether a fuller collision/contact event export is needed beyond
+  the current active-target hard-collision summaries.

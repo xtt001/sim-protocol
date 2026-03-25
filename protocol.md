@@ -1,7 +1,7 @@
 # protocol.md — AGXUnity <-> Python Step-Ack Wire Protocol
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-03-24
+Last updated: 2026-03-25
 Owner: joint (Unity/AGX team + Python/testbed team)
 
 This document is aligned to the current Repo B implementation.
@@ -31,7 +31,7 @@ Current observation semantics:
 - qpos order: `[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]`
 - qvel order: `[swing_speed, boom_speed, stick_speed, bucket_speed]`
 - env_state order:
-  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m]`
+  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m, target_hard_collision_count, target_contact_max_normal_force_n]`
 
 `mass_in_target_box_kg` semantics:
 - this field always refers to the currently active dump target selected by Unity
@@ -47,6 +47,18 @@ Current observation semantics:
   volume and the currently active target measurement volume
 - it is distance-based, not collision-based
 - `-1.0` means the distance could not be evaluated
+
+`target_hard_collision_count` semantics:
+- this field is the cumulative episode count of hard-collision occurrences against the currently active target
+- Unity increments it only when a new continuous excavator-vs-target contact session reaches the hard-collision threshold
+- while the excavator remains in continuous contact with the target, the count does not continue increasing every frame
+- after the excavator leaves the target, the next qualifying touch can increment the count again
+- the current Unity scene default threshold is `hard_collision_normal_force_thresh_n = 5000.0`
+- when the active target is `TruckBed`, the monitored target hard-surface set covers the full `BedTruck` collision body, not only the bed/trunk measurement region
+
+`target_contact_max_normal_force_n` semantics:
+- this field is the maximum monitored solved normal-force magnitude, in Newtons, observed during the completed step across excavator-vs-active-target contacts
+- `0.0` means no monitored active-target contact was observed for that step
 
 ## 2. Byte Order and Primitive Encoding
 
@@ -221,7 +233,7 @@ After the common response prefix, fields are written in this order:
 Current known values:
 - `qpos.len = 4`
 - `qvel.len = 4`
-- `env_state.len = 5`
+- `env_state.len = 7`
 - `reward = deposited_mass_in_target_box_kg`
 - `image_format = "raw_rgb"` when FPV capture succeeds
 - `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
@@ -240,6 +252,8 @@ Current evaluator note:
   - approaching the active target while loaded
   - increasing retained mass inside the active target
   - holding retained target mass above the configured success threshold
+- Repo A also applies a fixed per-step hard-collision penalty when the
+  cumulative `target_hard_collision_count` increases on that step
 - current default success rule is:
   `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
 
@@ -247,6 +261,8 @@ Current target-routing note:
 - `env_state[2]` and `env_state[3]` report the currently active target selected
   by Unity runtime target routing
 - `env_state[4]` reports approximate minimum bucket-to-target distance in meters
+- `env_state[5]` reports cumulative episode hard-collision count
+- `env_state[6]` reports the completed-step maximum monitored contact normal force in Newtons
 - target identity itself is currently scene/runtime configuration and is not
   carried explicitly in the binary `STEP_RESP` payload
 
@@ -280,7 +296,9 @@ Image payload rules:
   excavated_mass_kg,
   mass_in_target_box_kg,
   deposited_mass_in_target_box_kg,
-  min_distance_to_target_m
+  min_distance_to_target_m,
+  target_hard_collision_count,
+  target_contact_max_normal_force_n
 ]
 ```
 
@@ -306,6 +324,8 @@ Compared with older drafts, the current implementation has these important updat
 - FPV export uses raw RGB bytes, not JSON-wrapped image data
 - `GET_INFO_RESP` advertises camera metadata from the running FPV camera
 - `reset_pose` is supported through the current reset path
+- active-target hard-collision summary metrics are now exported without changing
+  the meaning of the first five env_state indices
 
 ## 13. Known Limits
 
@@ -315,6 +335,8 @@ Compared with older drafts, the current implementation has these important updat
 - transport is still a single-client sequential TCP service; the server now
   drops stale dead clients, but there is no higher-level reconnect/session
   protocol above TCP
+- there is still no full contact-event stream on the wire; only the current
+  active-target hard-collision summary metrics are exported
 
 ## 14. Versioning
 

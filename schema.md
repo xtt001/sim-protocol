@@ -1,7 +1,7 @@
 # schema.md — HDF5 Episode Dataset Schema v1.1
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-03-24
+Last updated: 2026-03-25
 Owner: joint (Unity/AGX team + Python/testbed team)
 Rule: add-only. Never remove or rename existing datasets/groups.
 
@@ -147,7 +147,15 @@ col 1: excavated_mass_kg
 col 2: mass_in_target_box_kg
 col 3: deposited_mass_in_target_box_kg
 col 4: min_distance_to_target_m
+col 5: target_hard_collision_count
+col 6: target_contact_max_normal_force_n
 ```
+
+Compatibility note:
+- older AGX V0 datasets may still have only the first five columns
+- Repo A decodes missing collision columns as `0.0`
+- `target_hard_collision_count` is cumulative within an episode
+- `target_contact_max_normal_force_n` is the completed-step maximum monitored force
 
 ### 5.4 images/fpv
 
@@ -199,6 +207,8 @@ Current V0 behavior:
   `deposited_mass_in_target_box_kg` as a backup success proxy, but the saved
   HDF5 reward is still the Repo A mission reward rather than the raw Unity
   wire scalar
+- Repo A may subtract a fixed hard-collision penalty from the saved mission
+  reward when cumulative `target_hard_collision_count` increases on that step
 - success remains target-centric and is determined from retained target mass
 - current default success rule is
   `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
