@@ -101,7 +101,7 @@ env_state:
   min_distance_to_target_m:
     index: 4
     units: "m"
-    notes: "Approximate minimum distance between the current bucket measurement volume and the active target measurement volume; -1.0 means unavailable."
+    notes: "Approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry; -1.0 means unavailable."
 
   target_hard_collision_count:
     index: 5

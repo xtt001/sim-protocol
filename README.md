@@ -48,7 +48,7 @@ index 8 = bucket_depth_below_dig_area_plane_m
 ```
 
 Current distance semantics:
-- `min_distance_to_target_m` reports approximate bucket-to-active-target measurement-volume distance
+- `min_distance_to_target_m` reports approximate bucket-proxy-to-active-target-distance-geometry distance
 - `min_distance_to_dig_area_m` and `bucket_depth_below_dig_area_plane_m` are the DigArea good-start geometry signals used by Repo A reward gating
 
 Step-ack hard rule:

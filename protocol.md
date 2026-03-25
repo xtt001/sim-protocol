@@ -43,8 +43,15 @@ Current observation semantics:
   clamped to zero
 
 `min_distance_to_target_m` semantics:
-- this field is the approximate minimum distance between the bucket measurement
-  volume and the currently active target measurement volume
+- this field is the approximate minimum distance between the bucket
+  target-distance proxy volume and the currently active target distance
+  geometry
+- in the current Unity scene that bucket proxy volume is editor-configurable
+  on `ExcavationMassTracker`
+- the target side now prefers target hard box shapes and only falls back to a
+  dedicated target-distance volume when those shapes are unavailable
+- for `TruckBed`, helper `*FailureVolume` shapes such as the dump/top failure
+  volumes are excluded from that target-side geometry set
 - `-1.0` means the distance could not be evaluated
 
 `min_distance_to_dig_area_m` semantics:

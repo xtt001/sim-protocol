@@ -160,7 +160,7 @@ Compatibility note:
 - Repo A decodes missing DigArea fields as legacy defaults and disables DigArea good-start gating automatically
 - `target_hard_collision_count` is cumulative within an episode
 - `target_contact_max_normal_force_n` is the completed-step maximum monitored force
-- `min_distance_to_target_m` is the approximate minimum distance between the current bucket measurement volume and the active target measurement volume
+- `min_distance_to_target_m` is the approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry
 - `min_distance_to_dig_area_m` / `bucket_depth_below_dig_area_plane_m` are the DigArea geometry signals used to gate shaped loading reward
 
 ### 5.4 images/fpv
