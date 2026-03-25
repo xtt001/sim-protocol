@@ -31,7 +31,7 @@ Current observation semantics:
 - qpos order: `[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]`
 - qvel order: `[swing_speed, boom_speed, stick_speed, bucket_speed]`
 - env_state order:
-  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m, target_hard_collision_count, target_contact_max_normal_force_n]`
+  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m, target_hard_collision_count, target_contact_max_normal_force_n, min_distance_to_dig_area_m, bucket_depth_below_dig_area_plane_m]`
 
 `mass_in_target_box_kg` semantics:
 - this field always refers to the currently active dump target selected by Unity
@@ -45,8 +45,20 @@ Current observation semantics:
 `min_distance_to_target_m` semantics:
 - this field is the approximate minimum distance between the bucket measurement
   volume and the currently active target measurement volume
-- it is distance-based, not collision-based
 - `-1.0` means the distance could not be evaluated
+
+`min_distance_to_dig_area_m` semantics:
+- this field is the approximate minimum distance between the bucket measurement
+  volume and the scene `DigArea` thin box
+- `0.0` means the bucket measurement volume is touching or overlapping the
+  DigArea box volume
+- `-1.0` means the distance could not be evaluated
+
+`bucket_depth_below_dig_area_plane_m` semantics:
+- this field is the current bucket depth below the DigArea plane
+- Unity computes it as `max(0, dig_plane_y - bucket_world_min_y)`
+- it only becomes positive when the bucket measurement volume goes below the
+  DigArea plane
 
 `target_hard_collision_count` semantics:
 - this field is the cumulative episode count of hard-collision occurrences against the currently active target
@@ -233,7 +245,7 @@ After the common response prefix, fields are written in this order:
 Current known values:
 - `qpos.len = 4`
 - `qvel.len = 4`
-- `env_state.len = 7`
+- `env_state.len = 9`
 - `reward = deposited_mass_in_target_box_kg`
 - `image_format = "raw_rgb"` when FPV capture succeeds
 - `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
@@ -248,12 +260,15 @@ Current evaluator note:
 - clients should still prefer `env_state[3]` /
   `deposited_mass_in_target_box_kg` as the source-of-truth named signal
 - current testbed reward sub-targets are:
-  - meaningful bucket load acquisition
+  - qualified DigArea good start plus meaningful bucket load acquisition
   - approaching the active target while loaded
   - increasing retained mass inside the active target
   - holding retained target mass above the configured success threshold
 - Repo A also applies a fixed per-step hard-collision penalty when the
   cumulative `target_hard_collision_count` increases on that step
+- when `env_state[7]` and `env_state[8]` are present, Repo A only opens the
+  shaped loading reward after bucket load increase occurs while touching the
+  DigArea region and going below the DigArea plane
 - current default success rule is:
   `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
 
@@ -263,6 +278,8 @@ Current target-routing note:
 - `env_state[4]` reports approximate minimum bucket-to-target distance in meters
 - `env_state[5]` reports cumulative episode hard-collision count
 - `env_state[6]` reports the completed-step maximum monitored contact normal force in Newtons
+- `env_state[7]` reports the approximate minimum bucket-to-DigArea distance in meters
+- `env_state[8]` reports the current bucket depth below the DigArea plane in meters
 - target identity itself is currently scene/runtime configuration and is not
   carried explicitly in the binary `STEP_RESP` payload
 
@@ -298,7 +315,9 @@ Image payload rules:
   deposited_mass_in_target_box_kg,
   min_distance_to_target_m,
   target_hard_collision_count,
-  target_contact_max_normal_force_n
+  target_contact_max_normal_force_n,
+  min_distance_to_dig_area_m,
+  bucket_depth_below_dig_area_plane_m
 ]
 ```
 
@@ -326,6 +345,8 @@ Compared with older drafts, the current implementation has these important updat
 - `reset_pose` is supported through the current reset path
 - active-target hard-collision summary metrics are now exported without changing
   the meaning of the first five env_state indices
+- Unity now also exports DigArea good-start geometry metrics while keeping the
+  first seven env_state indices stable
 
 ## 13. Known Limits
 

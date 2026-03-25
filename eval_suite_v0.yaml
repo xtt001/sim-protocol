@@ -19,10 +19,14 @@ observations:
     4: min_distance_to_target_m
     5: target_hard_collision_count
     6: target_contact_max_normal_force_n
+    7: min_distance_to_dig_area_m
+    8: bucket_depth_below_dig_area_plane_m
 
 reward:
   hard_collision_penalty: 0.75
-  note: "Apply once per step when cumulative target_hard_collision_count increases. Success remains mass-based."
+  dig_area_touch_tolerance_m: 0.05
+  dig_below_plane_depth_tolerance_m: 0.02
+  note: "Apply once per step when cumulative target_hard_collision_count increases. Success remains mass-based, and shaped loading opens only after a qualified DigArea good start when DigArea fields are present."
 
 success:
   rule: "retained_target_mass_hold"

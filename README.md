@@ -43,7 +43,13 @@ index 3 = deposited_mass_in_target_box_kg
 index 4 = min_distance_to_target_m
 index 5 = target_hard_collision_count
 index 6 = target_contact_max_normal_force_n
+index 7 = min_distance_to_dig_area_m
+index 8 = bucket_depth_below_dig_area_plane_m
 ```
+
+Current distance semantics:
+- `min_distance_to_target_m` reports approximate bucket-to-active-target measurement-volume distance
+- `min_distance_to_dig_area_m` and `bucket_depth_below_dig_area_plane_m` are the DigArea good-start geometry signals used by Repo A reward gating
 
 Step-ack hard rule:
 ```text
@@ -103,6 +109,9 @@ Operational mapping:
   `deposited_mass_in_target_box_kg` as a backup success proxy on the wire.
 - Repo A still computes the primary AGX mission reward locally from the
   recorded `env_state` series.
+- Repo A only opens the shaped `loading -> approaching_target -> depositing`
+  reward chain after a qualified DigArea good start when the two DigArea
+  geometry fields are present on the wire.
 
 ## What Is Still Provisional
 

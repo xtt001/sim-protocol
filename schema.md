@@ -149,13 +149,19 @@ col 3: deposited_mass_in_target_box_kg
 col 4: min_distance_to_target_m
 col 5: target_hard_collision_count
 col 6: target_contact_max_normal_force_n
+col 7: min_distance_to_dig_area_m
+col 8: bucket_depth_below_dig_area_plane_m
 ```
 
 Compatibility note:
 - older AGX V0 datasets may still have only the first five columns
+- older 7-column datasets may still omit the DigArea fields
 - Repo A decodes missing collision columns as `0.0`
+- Repo A decodes missing DigArea fields as legacy defaults and disables DigArea good-start gating automatically
 - `target_hard_collision_count` is cumulative within an episode
 - `target_contact_max_normal_force_n` is the completed-step maximum monitored force
+- `min_distance_to_target_m` is the approximate minimum distance between the current bucket measurement volume and the active target measurement volume
+- `min_distance_to_dig_area_m` / `bucket_depth_below_dig_area_plane_m` are the DigArea geometry signals used to gate shaped loading reward
 
 ### 5.4 images/fpv
 
