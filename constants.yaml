@@ -1,7 +1,7 @@
 # constants.yaml — Shared AGXUnity / Python Constants
 #
 # Repo: sim-protocol (Repo C - shared)
-# Last updated: 2026-03-25
+# Last updated: 2026-03-27
 # Status: aligned to the current Repo B implementation where values are known.
 # Unsettled values are left null or explicitly noted as provisional.
 
@@ -101,12 +101,12 @@ env_state:
   min_distance_to_target_m:
     index: 4
     units: "m"
-    notes: "Approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry; -1.0 means unavailable."
+    notes: "Approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry; for TruckBed, helper *FailureVolume shapes are excluded from target-distance and hard-collision filtering; -1.0 means unavailable."
 
   target_hard_collision_count:
     index: 5
     units: "count"
-    notes: "Cumulative episode count of monitored hard-collision contact sessions against the active target; one continuous contact session increments at most once and the next increment requires leaving the target first."
+    notes: "Cumulative episode count of monitored hard-collision contact sessions against the active target; one continuous contact session increments at most once and the next increment requires leaving the target first; TruckBed uses the full BedTruck hard body with helper *FailureVolume shapes excluded."
 
   target_contact_max_normal_force_n:
     index: 6

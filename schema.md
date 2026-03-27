@@ -1,7 +1,7 @@
 # schema.md — HDF5 Episode Dataset Schema v1.1
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-03-25
+Last updated: 2026-03-27
 Owner: joint (Unity/AGX team + Python/testbed team)
 Rule: add-only. Never remove or rename existing datasets/groups.
 
@@ -60,11 +60,30 @@ Stored as HDF5 attributes under `/metadata`.
 | `protocol_version` | string | example: `"agx-sim/v0"` |
 | `camera_width` | int32 | runtime-specific; not yet guaranteed in every writer |
 | `camera_height` | int32 | runtime-specific; not yet guaranteed in every writer |
+| `camera_fps` | float32 | runtime-advertised camera fps |
+| `camera_row_order` | string | current V0 is `"top_to_bottom"` |
 | `operator_id` | string | teleop operator identity |
 | `session_id` | string | grouping key |
+| `notes` | string | free-form demo notes |
+| `record_config_path` | string | Repo A recording config path snapshot |
+| `record_config_yaml` | string | Repo A recording config YAML snapshot |
+| `action_order` | string | comma-separated action names |
+| `qpos_order` | string | comma-separated qpos names |
+| `qvel_order` | string | comma-separated qvel names |
+| `env_state_order` | string | comma-separated env_state names |
+| `teleop_input` | string | `"joystick"` or `"keyboard"` |
 | `deadzone` | float32[4] | per-axis teleop deadzone |
 | `scale` | float32[4] | per-axis teleop scale |
 | `limit` | float32[4] | per-axis teleop clip |
+| `axis_map` | int32[4] | per-axis joystick mapping |
+| `joystick_ids` | int32[4] | per-axis pygame joystick ids |
+| `invert` | int32/bool[4] | per-axis invert flags |
+| `key_speed` | float32 | keyboard teleop speed |
+| `response_profile_enabled` | int32/bool | response-profile enabled flag |
+| `response_profile_attack_rate` | float32[4] | joystick response-profile attack rate |
+| `response_profile_release_rate` | float32[4] | joystick response-profile release rate |
+| `response_profile_recenter_rate` | float32[4] | joystick response-profile recenter rate |
+| `response_profile_exponent` | float32[4] | joystick response-profile exponent |
 | `reset_mode` | string | example: `"baseline_fixed"` |
 | `success` | int32/bool | episode-level success label written by Repo A |
 | `n_steps` | int32 | convenience metadata |
@@ -161,6 +180,7 @@ Compatibility note:
 - `target_hard_collision_count` is cumulative within an episode
 - `target_contact_max_normal_force_n` is the completed-step maximum monitored force
 - `min_distance_to_target_m` is the approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry
+- for `TruckBed`, helper `*FailureVolume` shapes are excluded from target-distance and target hard-collision filtering
 - `min_distance_to_dig_area_m` / `bucket_depth_below_dig_area_plane_m` are the DigArea geometry signals used to gate shaped loading reward
 
 ### 5.4 images/fpv
@@ -213,6 +233,9 @@ Current V0 behavior:
   `deposited_mass_in_target_box_kg` as a backup success proxy, but the saved
   HDF5 reward is still the Repo A mission reward rather than the raw Unity
   wire scalar
+- current Repo A ACT behavior-cloning training does not consume `/rewards` as a
+  supervised learning target; this dataset is primarily for analysis, replay,
+  and eval-side accounting
 - Repo A may subtract a fixed hard-collision penalty from the saved mission
   reward when cumulative `target_hard_collision_count` increases on that step
 - success remains target-centric and is determined from retained target mass

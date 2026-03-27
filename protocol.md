@@ -1,7 +1,7 @@
 # protocol.md — AGXUnity <-> Python Step-Ack Wire Protocol
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-03-25
+Last updated: 2026-03-27
 Owner: joint (Unity/AGX team + Python/testbed team)
 
 This document is aligned to the current Repo B implementation.
@@ -51,7 +51,8 @@ Current observation semantics:
 - the target side now prefers target hard box shapes and only falls back to a
   dedicated target-distance volume when those shapes are unavailable
 - for `TruckBed`, helper `*FailureVolume` shapes such as the dump/top failure
-  volumes are excluded from that target-side geometry set
+  volumes are excluded from both that target-side distance geometry set and
+  the target hard-collision shape filtering
 - `-1.0` means the distance could not be evaluated
 
 `min_distance_to_dig_area_m` semantics:
@@ -73,7 +74,10 @@ Current observation semantics:
 - while the excavator remains in continuous contact with the target, the count does not continue increasing every frame
 - after the excavator leaves the target, the next qualifying touch can increment the count again
 - the current Unity scene default threshold is `hard_collision_normal_force_thresh_n = 5000.0`
+- source shapes are the enabled AGX `Collide.Shape` components under the excavator root
+- target shapes come from the currently active target hard-surface shape set
 - when the active target is `TruckBed`, the monitored target hard-surface set covers the full `BedTruck` collision body, not only the bed/trunk measurement region
+- for `TruckBed`, helper `*FailureVolume` shapes are excluded from this target hard-surface set
 
 `target_contact_max_normal_force_n` semantics:
 - this field is the maximum monitored solved normal-force magnitude, in Newtons, observed during the completed step across excavator-vs-active-target contacts
@@ -221,7 +225,8 @@ Current behavior:
 - `reset_applied = true` when `reset_terrain || reset_pose`
 - when `reset_pose = true` and `reset_terrain = false`, Unity resets pose and
   counters without forcing a terrain height reset
-- when both flags are true, Unity performs the full scene reset path
+- when both flags are true, Unity performs the full scene reset path,
+  including truck rigid bodies and truck bed/drivetrain constraints
 - when `reset_terrain = true`, Unity rebuilds the deformable terrain state so
   dynamic soil mass/particles are cleared as part of reset, including particles
   that were still trapped in the bucket
@@ -229,10 +234,14 @@ Current behavior:
   engine so subsequent `STEP_REQ` actions take effect immediately
 - the current reset path prefers the current Unity scene reset service and only
   falls back to the episode reset path for full resets
+- when Unity serving is configured to disable `EpisodeManager`, local HUD
+  release-controls UI is not part of the shared wire contract and should not be
+  relied on by clients
 - terrain reset is handled by Unity `ResetTerrain` / `SceneResetService`; the
   excavation metrics component no longer mutates terrain heights during reset
 - pending step-ack requests are consumed on Unity `FixedUpdate`, so live
-  step-ack teleop stays aligned with the fixed simulation timestep
+  step-ack teleop stays aligned with the fixed simulation timestep instead of
+  Editor render-frame jitter
 
 ## 9. STEP_RESP Payload
 
@@ -256,6 +265,8 @@ Current known values:
 - `reward = deposited_mass_in_target_box_kg`
 - `image_format = "raw_rgb"` when FPV capture succeeds
 - `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
+- FPV capture renders from the tracked camera only; Unity IMGUI overlays such
+  as HUD text or camera-window chrome are not part of `image_payload`
 
 Current evaluator note:
 - success for V0 is not decided by this `reward` field
@@ -264,6 +275,8 @@ Current evaluator note:
   `reward = deposited_mass_in_target_box_kg`
 - Repo A currently computes AGX excavation mission reward locally from
   `env_state`
+- Repo A's AGX evaluator currently decides success from `task_success` /
+  retained target mass hold, not from `highest_reward == max_reward`
 - clients should still prefer `env_state[3]` /
   `deposited_mass_in_target_box_kg` as the source-of-truth named signal
 - current testbed reward sub-targets are:
@@ -354,6 +367,9 @@ Compared with older drafts, the current implementation has these important updat
   the meaning of the first five env_state indices
 - Unity now also exports DigArea good-start geometry metrics while keeping the
   first seven env_state indices stable
+- the target-distance field now uses the editor-configurable bucket proxy
+  volume on `ExcavationMassTracker`, while `TruckBed` helper `*FailureVolume`
+  shapes are excluded from target-distance and target hard-collision filtering
 
 ## 13. Known Limits
 

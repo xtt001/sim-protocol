@@ -1,7 +1,7 @@
 # eval_suite_v0.yaml — Shared AGX Excavation Eval Suite Skeleton
 #
 # Repo: sim-protocol (Repo C - shared)
-# Last updated: 2026-03-25
+# Last updated: 2026-03-27
 # Status: aligned to current known Repo B / Repo A behavior.
 # Unsettled values remain explicit TODOs.
 
@@ -42,6 +42,7 @@ rollout:
   episode_len: 1000
   num_rollouts_default: 10
   num_rollouts_final: 50
+  step_log_interval: 50
 
 scenarios:
   - id: "s0_baseline"
@@ -56,9 +57,14 @@ scenarios:
 
 artifacts:
   metrics_file: "metrics.json"
-  summary_csv: "summary.csv"
+  results_csv: "results.csv"
+  rollout_manifest_file: "rollout_manifest.json"
+  rollout_log_dir: "rollouts/"
+  rollout_jsonl_pattern: "rollout_{id:03d}.jsonl"
+  rollout_summary_pattern: "rollout_{id:03d}_summary.json"
   video_dir: "videos/"
   save_video: true
+  save_rollout_logs: true
 
 determinism:
   reset_mode: "baseline_fixed"

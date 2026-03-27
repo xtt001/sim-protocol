@@ -7,6 +7,8 @@ Current status:
 - Repo C has been updated to match the current Repo B binary step-ack protocol.
 - Anything still uncertain in Repo B is marked provisional here instead of being
   guessed or frozen as a fake constant.
+- Current shared docs are also aligned to Repo A's live AGX HDF5 schema and
+  eval artifact names.
 
 ## Contents
 
@@ -50,6 +52,8 @@ index 8 = bucket_depth_below_dig_area_plane_m
 Current distance semantics:
 - `min_distance_to_target_m` reports approximate bucket-proxy-to-active-target-distance-geometry distance
 - `min_distance_to_dig_area_m` and `bucket_depth_below_dig_area_plane_m` are the DigArea good-start geometry signals used by Repo A reward gating
+- for `TruckBed`, helper `*FailureVolume` shapes are excluded from both target-distance
+  geometry and target hard-collision filtering
 
 Step-ack hard rule:
 ```text
@@ -103,6 +107,9 @@ Operational mapping:
   later touches it again.
 - For `TruckBed`, the monitored collision body covers the full `BedTruck`
   hard body, not only the bed/trunk area.
+- Repo A HDF5 v1.1 episodes now also carry demo-level metadata and config
+  snapshot attrs such as `operator_id`, `session_id`, `notes`,
+  `record_config_path`, and `record_config_yaml`.
 - Repo A currently applies a fixed `0.75` per-step hard-collision penalty only
   when the cumulative `target_hard_collision_count` increases on that step.
 - Unity `STEP_RESP.reward` now mirrors
