@@ -18,6 +18,7 @@ Current status:
 | [schema.md](schema.md) | HDF5 episode schema v1.1 |
 | [constants.yaml](constants.yaml) | Shared constants and ordering definitions |
 | [eval_suite_v0.yaml](eval_suite_v0.yaml) | Fixed eval suite skeleton for AGX excavation |
+| [platform_switch_windows.md](platform_switch_windows.md) | Shared checklist for migrating Repo A + Repo B to Windows without changing the Repo C contract |
 
 ## Quick Reference
 
@@ -67,6 +68,9 @@ Contract boundary:
   but those are auxiliary Unity-native exports, not the shared live contract.
 - V0 task scope is fixed-position / stationary digging only; drive / steer /
   track motion are intentionally excluded from the current shared action space.
+- Platform migration guidance for moving Repo A + Repo B to Windows lives in
+  `platform_switch_windows.md`; that file is operational guidance, not a new
+  protocol layer.
 
 Operational mapping:
 - `tb-record-teleop --config testbed/configs/teleop_v0.yaml --input joystick --num-episodes 5`
