@@ -1,7 +1,7 @@
 # schema.md — HDF5 Episode Dataset Schema v1.1
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-03-27
+Last updated: 2026-04-14
 Owner: joint (Unity/AGX team + Python/testbed team)
 Rule: add-only. Never remove or rename existing datasets/groups.
 
@@ -45,7 +45,7 @@ Stored as HDF5 attributes under `/metadata`.
 | `task_name` | string | example: `"agx_excavation_teleop"` |
 | `sim_backend` | string | `"agxunity"` |
 | `seed` | int32 | reset seed used for the episode |
-| `param_version` | string | example: `"v0"` |
+| `param_version` | string | example: `"v0"` or `"v1"` |
 | `timestamp` | string | ISO 8601 |
 | `control_hz` | int32 | currently `50` |
 | `dt` | float32 | currently `0.02` |
@@ -239,8 +239,11 @@ Current V0 behavior:
 - Repo A may subtract a fixed hard-collision penalty from the saved mission
   reward when cumulative `target_hard_collision_count` increases on that step
 - success remains target-centric and is determined from retained target mass
-- current default success rule is
+- legacy V0 recordings often used
   `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
+- current Repo A rerecord baseline commonly uses `dump_complete_final_hold`
+  style logic, with thresholds captured in `record_config_yaml` rather than
+  hard-coded in the schema contract
 
 ## 8. Replay Validity Requirements
 

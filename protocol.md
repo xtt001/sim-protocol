@@ -1,7 +1,7 @@
 # protocol.md — AGXUnity <-> Python Step-Ack Wire Protocol
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-03-27
+Last updated: 2026-04-14
 Owner: joint (Unity/AGX team + Python/testbed team)
 
 This document is aligned to the current Repo B implementation.
@@ -26,6 +26,9 @@ Current control semantics:
 - action order: `[swing_speed_cmd, boom_speed_cmd, stick_speed_cmd, bucket_speed_cmd]`
 - V0 task scope is fixed-position / stationary digging; `drive`, `steer`, and
   track motion are intentionally excluded from the current wire action space
+- Repo B may consume pending requests on `Update`, `FixedUpdate`, or a
+  dedicated realtime path; this is a runtime scheduling choice and does not
+  change any wire field layout in this document
 
 Current observation semantics:
 - qpos order: `[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]`
@@ -239,9 +242,11 @@ Current behavior:
   relied on by clients
 - terrain reset is handled by Unity `ResetTerrain` / `SceneResetService`; the
   excavation metrics component no longer mutates terrain heights during reset
-- pending step-ack requests are consumed on Unity `FixedUpdate`, so live
-  step-ack teleop stays aligned with the fixed simulation timestep instead of
-  Editor render-frame jitter
+- pending step-ack requests may be consumed on Unity `Update` or
+  `FixedUpdate`, depending on Repo B runtime configuration
+- current recommended baseline uses `Update`
+- realtime experiments may use a separate Repo B realtime path, but that does
+  not change the response payload layout documented here
 
 ## 9. STEP_RESP Payload
 

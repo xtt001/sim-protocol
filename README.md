@@ -9,6 +9,9 @@ Current status:
   guessed or frozen as a fake constant.
 - Current shared docs are also aligned to Repo A's live AGX HDF5 schema and
   eval artifact names.
+- Repo A current business baseline is the rerecord `v1` line
+  (`teleop_v1 / act_agx_v1 / eval_agx_v1`), while `fulltest` remains the main
+  historical comparison set for `qpos` vs `qpos+qvel`.
 
 ## Contents
 
@@ -73,12 +76,14 @@ Contract boundary:
   protocol layer.
 
 Operational mapping:
-- `tb-record-teleop --config testbed/configs/teleop_v0.yaml --input joystick --num-episodes 5`
-  is the current canonical Repo A data-collection command
-- `tb-train --config testbed/configs/act_agx_v0.yaml` is offline and consumes
-  only Repo A HDF5 episodes
-- `tb-eval --config testbed/configs/eval_agx_v0.yaml` is live and requires the
-  Unity step-ack server to be running
+- `tb-record-teleop --config testbed/configs/teleop_v1.yaml`
+  is the current Repo A baseline data-collection command
+- `tb-train --config testbed/configs/act_agx_v1.yaml`
+  is the current Repo A business-baseline training command
+- `tb-eval --config testbed/configs/eval_agx_v1.yaml`
+  is the current Repo A business-baseline live evaluation command
+- `tb-train --config testbed/configs/act_agx_fulltest_qvel.yaml`
+  remains the main `qpos+qvel` comparison command on the older `fulltest` dataset
 
 ## What Is Settled
 
@@ -97,8 +102,11 @@ Operational mapping:
 - When `RESET_REQ.reset_terrain = true`, Unity is expected to rebuild the
   deformable terrain state so bucket-trapped soil particles are cleared back to
   the initial terrain baseline.
-- Pending step-ack requests are consumed on Unity `FixedUpdate`, keeping live
-  step-ack teleop aligned with the advertised fixed simulation timestep.
+- Repo B now supports runtime selection of request consumption mode:
+  `Update`, `FixedUpdate`, or dedicated `Realtime Mode`.
+- The current recommended baseline is `Update`.
+- This scheduling choice is an implementation/runtime concern in Repo B. It
+  does not change the wire contract defined in Repo C.
 - V0 success is target-centric:
   `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
   within the `1000`-step episode.
