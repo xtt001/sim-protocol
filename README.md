@@ -102,11 +102,9 @@ Operational mapping:
 - When `RESET_REQ.reset_terrain = true`, Unity is expected to rebuild the
   deformable terrain state so bucket-trapped soil particles are cleared back to
   the initial terrain baseline.
-- Repo B now supports runtime selection of request consumption mode:
-  `Update`, `FixedUpdate`, or dedicated `Realtime Mode`.
-- The current recommended baseline is `Update`.
-- This scheduling choice is an implementation/runtime concern in Repo B. It
-  does not change the wire contract defined in Repo C.
+- Repo B baseline consumes pending requests on `Update`.
+- Transport scheduling experiments belong to dedicated transport branches and do
+  not change the baseline wire contract defined in Repo C.
 - V0 success is target-centric:
   `deposited_mass_in_target_box_kg >= 100.0 kg` for `25` consecutive steps
   within the `1000`-step episode.
