@@ -51,11 +51,21 @@ index 5 = target_hard_collision_count
 index 6 = target_contact_max_normal_force_n
 index 7 = min_distance_to_dig_area_m
 index 8 = bucket_depth_below_dig_area_plane_m
+index 9 = target_horizontal_distance_m
+index 10 = bucket_height_above_target_rim_m
+index 11 = bucket_over_target_footprint_mask
+index 12 = dump_clearance_ok_mask
 ```
 
 Current distance semantics:
-- `min_distance_to_target_m` reports approximate bucket-proxy-to-active-target-distance-geometry distance
+- `min_distance_to_target_m` reports legacy approximate bucket-proxy-to-active-target-distance-geometry distance and is diagnostics-only for target safety
 - `min_distance_to_dig_area_m` and `bucket_depth_below_dig_area_plane_m` are the DigArea good-start geometry signals used by Repo A reward gating
+- `target_horizontal_distance_m`, `bucket_height_above_target_rim_m`,
+  `bucket_over_target_footprint_mask`, and `dump_clearance_ok_mask` are the
+  explicit target-geometry contract used by Repo A target-safety reward,
+  filtering, and scripted dump guards
+- target-safety logic must not fall back from those four explicit fields to
+  `min_distance_to_target_m`
 - for `TruckBed`, helper `*FailureVolume` shapes are excluded from both target-distance
   geometry and target hard-collision filtering
 
@@ -82,6 +92,17 @@ Operational mapping:
   is the current Repo A business-baseline training command
 - `tb-eval --config testbed/configs/eval_agx_v1.yaml`
   is the current Repo A business-baseline live evaluation command
+- `tb-record-teleop --config testbed/configs/teleop_v2_1_multi_raw.yaml`
+  is the current Repo A V2.1 Stage-1 multicycle raw-recording entry; it stops
+  on the third detected `dump_end` and uses `max_steps = 4000` only as a guardrail
+- `tb-label-v2_1 --dataset-dir data/agx_teleop_v2_1_multi_raw`
+  is the current Repo A offline step that writes Stage-1 multicycle `/v2`
+  labels into a sibling relabeled dataset copy
+- `tb-eval --config testbed/configs/eval_agx_v2_1_stage1.yaml`
+  is the current Repo A V2.1 Stage-1 live evaluation entry
+- the older phase-1 single-cycle `teleop_v2_cycle_*` and `tb-label-v2`
+  entrypoints have been removed from the current branch and now live only in
+  repository history
 - `tb-train --config testbed/configs/act_agx_fulltest_qvel.yaml`
   remains the main `qpos+qvel` comparison command on the older `fulltest` dataset
 
@@ -110,6 +131,9 @@ Operational mapping:
   within the `1000`-step episode.
 - Repo B now exports active-target hard-collision summary metrics:
   `target_hard_collision_count` and `target_contact_max_normal_force_n`.
+- Repo B now exports explicit active-target dump geometry:
+  `target_horizontal_distance_m`, `bucket_height_above_target_rim_m`,
+  `bucket_over_target_footprint_mask`, and `dump_clearance_ok_mask`.
 - `target_hard_collision_count` is cumulative within the episode.
 - one continuous excavator-vs-target contact session increments that count at
   most once.
@@ -129,6 +153,13 @@ Operational mapping:
 - Repo A only opens the shaped `loading -> approaching_target -> depositing`
   reward chain after a qualified DigArea good start when the two DigArea
   geometry fields are present on the wire.
+- Repo A target-safety training and scripted dump guards require the four
+  explicit target-geometry fields; old 9-column data is legacy-only for this
+  purpose and should not be mixed into target-safety training as a fallback.
+- `RESET_REQ.scenario_id` is now operational in phase-1, but only as a minimal
+  preset-routing key for `reset_terrain`, `reset_pose`, and `ActiveTargetIndex`.
+- Repo A may attach an optional `/v2` add-only extension group to HDF5 episodes;
+  this does not change the shared `schema_version = "1.1"` contract.
 
 ## What Is Still Provisional
 
@@ -146,8 +177,9 @@ Operational mapping:
 | Change | Required action |
 | --- | --- |
 | New optional response field | Keep backward compatible; no version bump required |
+| New add-only env_state tail field | Preserve existing prefix order, update Repo C docs/constants, and feature-gate consumers |
 | New required wire field | Bump protocol version and review jointly |
-| Change vector ordering or dimension | Bump protocol version and schema version |
+| Change existing vector ordering or prefix dimension | Bump protocol version and schema version |
 | New required HDF5 field | Bump schema version |
 | Remove an existing field | Not allowed without deprecation plan |
 

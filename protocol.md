@@ -1,7 +1,7 @@
 # protocol.md — AGXUnity <-> Python Step-Ack Wire Protocol
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-04-14
+Last updated: 2026-04-24
 Owner: joint (Unity/AGX team + Python/testbed team)
 
 This document is aligned to the current Repo B implementation.
@@ -34,7 +34,7 @@ Current observation semantics:
 - qpos order: `[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]`
 - qvel order: `[swing_speed, boom_speed, stick_speed, bucket_speed]`
 - env_state order:
-  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m, target_hard_collision_count, target_contact_max_normal_force_n, min_distance_to_dig_area_m, bucket_depth_below_dig_area_plane_m]`
+  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m, target_hard_collision_count, target_contact_max_normal_force_n, min_distance_to_dig_area_m, bucket_depth_below_dig_area_plane_m, target_horizontal_distance_m, bucket_height_above_target_rim_m, bucket_over_target_footprint_mask, dump_clearance_ok_mask]`
 
 `mass_in_target_box_kg` semantics:
 - this field always refers to the currently active dump target selected by Unity
@@ -46,9 +46,12 @@ Current observation semantics:
   clamped to zero
 
 `min_distance_to_target_m` semantics:
-- this field is the approximate minimum distance between the bucket
+- this legacy field is the approximate minimum distance between the bucket
   target-distance proxy volume and the currently active target distance
   geometry
+- it is retained for diagnostics and historical comparability only
+- Repo A target-safety reward, data filtering, and scripted dump guards must
+  not use it as a fallback for explicit target geometry
 - in the current Unity scene that bucket proxy volume is editor-configurable
   on `ExcavationMassTracker`
 - the target side now prefers target hard box shapes and only falls back to a
@@ -57,6 +60,37 @@ Current observation semantics:
   volumes are excluded from both that target-side distance geometry set and
   the target hard-collision shape filtering
 - `-1.0` means the distance could not be evaluated
+
+`target_horizontal_distance_m` semantics:
+- this field is the explicit horizontal planar distance between the bucket
+  target-distance proxy footprint and the active target clearance footprint
+- `0.0` means the bucket and target footprints overlap in the target
+  horizontal plane
+- `-1.0` means the explicit target geometry could not be evaluated
+
+`bucket_height_above_target_rim_m` semantics:
+- this field is the bucket target-distance proxy bottom height relative to the
+  active target clearance volume top/rim
+- positive values mean the proxy bottom is above the rim
+- negative values mean the proxy bottom is below the rim
+
+`bucket_over_target_footprint_mask` semantics:
+- this field is a float mask
+- `1.0` means the bucket target-distance proxy footprint overlaps the active
+  target clearance footprint
+- `0.0` means it is outside or unavailable
+
+`dump_clearance_ok_mask` semantics:
+- this field is a float mask
+- `1.0` means the bucket is within the active target's dump-clearance
+  horizontal tolerance and `bucket_height_above_target_rim_m >= 0.0`
+- `TruckBed` currently uses a wider horizontal tolerance than strict footprint
+  overlap because material can enter the bed safely before the bucket proxy
+  footprint fully overlaps the bed footprint
+- vertical clearance is not tolerant for `TruckBed`: the bucket proxy bottom
+  must remain above the target rim/top, and negative height means not clear
+- `0.0` means dump clearance is not currently satisfied or the explicit
+  geometry is unavailable
 
 `min_distance_to_dig_area_m` semantics:
 - this field is the approximate minimum distance between the bucket measurement
@@ -156,6 +190,10 @@ Binary field order:
 Notes:
 - zero-length payload may be accepted and treated as defaults
 - optional trailing fields may be omitted
+- phase-1 `scenario_id` may route to a Repo B preset that overrides
+  `reset_terrain` / `reset_pose` and applies a post-reset target switch
+- unknown `scenario_id` values should degrade to warnings, not protocol failure
+- phase-1 does not define pose-offset or DigArea-offset semantics for `scenario_id`
 
 ### 5.3 STEP_REQ
 
@@ -264,7 +302,7 @@ After the common response prefix, fields are written in this order:
 Current known values:
 - `qpos.len = 4`
 - `qvel.len = 4`
-- `env_state.len = 9`
+- `env_state.len = 13`
 - `reward = deposited_mass_in_target_box_kg`
 - `image_format = "raw_rgb"` when FPV capture succeeds
 - `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
@@ -289,6 +327,9 @@ Current evaluator note:
   - holding retained target mass above the configured success threshold
 - Repo A also applies a fixed per-step hard-collision penalty when the
   cumulative `target_hard_collision_count` increases on that step
+- Repo A target-safety reward, data filtering, and scripted dump guards require
+  `env_state[9]` through `env_state[12]` to be present and
+  `target_horizontal_distance_m >= 0.0`; `env_state[4]` is not a fallback
 - when `env_state[7]` and `env_state[8]` are present, Repo A only opens the
   shaped loading reward after bucket load increase occurs while touching the
   DigArea region and going below the DigArea plane
@@ -303,6 +344,10 @@ Current target-routing note:
 - `env_state[6]` reports the completed-step maximum monitored contact normal force in Newtons
 - `env_state[7]` reports the approximate minimum bucket-to-DigArea distance in meters
 - `env_state[8]` reports the current bucket depth below the DigArea plane in meters
+- `env_state[9]` reports explicit horizontal bucket-to-target clearance-footprint distance in meters
+- `env_state[10]` reports bucket bottom height above the active target rim in meters
+- `env_state[11]` reports whether the bucket proxy footprint overlaps the active target footprint
+- `env_state[12]` reports whether target dump clearance is currently satisfied
 - target identity itself is currently scene/runtime configuration and is not
   carried explicitly in the binary `STEP_RESP` payload
 
@@ -340,7 +385,11 @@ Image payload rules:
   target_hard_collision_count,
   target_contact_max_normal_force_n,
   min_distance_to_dig_area_m,
-  bucket_depth_below_dig_area_plane_m
+  bucket_depth_below_dig_area_plane_m,
+  target_horizontal_distance_m,
+  bucket_height_above_target_rim_m,
+  bucket_over_target_footprint_mask,
+  dump_clearance_ok_mask
 ]
 ```
 
@@ -370,6 +419,10 @@ Compared with older drafts, the current implementation has these important updat
   the meaning of the first five env_state indices
 - Unity now also exports DigArea good-start geometry metrics while keeping the
   first seven env_state indices stable
+- Unity now also exports explicit target dump geometry metrics while keeping
+  the first nine env_state indices stable; Repo A requires these fields for
+  target-safety training and scripted dump guards, with no fallback to
+  `min_distance_to_target_m`
 - the target-distance field now uses the editor-configurable bucket proxy
   volume on `ExcavationMassTracker`, while `TruckBed` helper `*FailureVolume`
   shapes are excluded from target-distance and target hard-collision filtering

@@ -1,7 +1,7 @@
 # schema.md — HDF5 Episode Dataset Schema v1.1
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-04-14
+Last updated: 2026-04-24
 Owner: joint (Unity/AGX team + Python/testbed team)
 Rule: add-only. Never remove or rename existing datasets/groups.
 
@@ -15,6 +15,9 @@ Important boundary:
 - Repo B may also emit local `metadata.json` / `steps.jsonl` / raw RGB exports
   for debugging or conversion, but those files are auxiliary and are not the
   canonical shared dataset contract.
+- Repo A may also attach an optional `/v2` add-only extension group for its
+  own Stage-1 V2.1 multicycle labels. That extension is intentionally optional
+  and does not bump `schema_version` beyond `"1.1"`.
 
 ## 1. File Layout
 
@@ -30,7 +33,8 @@ episode_XXXX.hdf5
 │   └── images/
 │       └── fpv
 ├── action
-└── rewards
+├── rewards
+└── v2/                    optional Repo A extension
 ```
 
 ## 2. /metadata
@@ -87,6 +91,19 @@ Stored as HDF5 attributes under `/metadata`.
 | `reset_mode` | string | example: `"baseline_fixed"` |
 | `success` | int32/bool | episode-level success label written by Repo A |
 | `n_steps` | int32 | convenience metadata |
+| `v2_schema_version` | string | optional legacy Repo A phase-1 extension marker |
+| `scenario_id` | string | optional Repo A experiment routing key |
+| `recording_mode` | string | optional Repo A recording mode, current Stage-1 value `"teleop_multi_raw"` |
+| `target_dump_count` | int32 | optional Repo A Stage-1 raw recording stop target |
+| `stop_reason` | string | optional Repo A stop reason, such as `target_dump_count_reached` |
+| `v2_enabled` | int32/bool | optional Repo A Stage-1 `/v2` enabled marker |
+| `goal_token_dim` | int32 | optional Repo A goal-token width, current Stage-1 value `10` |
+| `goal_token_version` | string | optional Repo A goal-token semantic version, current value `"v2_1a_sector10d"` |
+| `phase_version` | string | optional Repo A phase semantic version, current value `"v2_1_mode_phase_7cls"` |
+| `scenario_manifest_version` | string | optional Repo A Stage-1 scenario-manifest version |
+| `transition_source` | string | optional Repo A transition-label source, current Stage-1 value `"none"` |
+| `patch_grid_spec` | string | optional legacy Repo A phase-1 patch-grid metadata |
+| `anchor_vocab_version` | string | optional legacy Repo A phase-1 ready-anchor vocab version |
 
 ## 3. /timestamps
 
@@ -108,6 +125,61 @@ For new AGX V0 datasets:
 
 Optional future extension:
 - `latency_ms: (T,) float32`
+
+## 4.1 Optional Repo A `/v2` extension
+
+Repo A Stage-1 V2.1 may append an optional `/v2` group for offline multicycle
+labels without changing the shared `schema_version`.
+
+Current optional layout:
+
+```text
+/v2
+├── step/
+│   ├── cycle_id
+│   ├── mode_id
+│   ├── phase_id
+│   ├── phase_progress
+│   ├── goal_tokens
+│   ├── planner_replan_mask
+│   ├── qualified_dig_start_mask
+│   ├── dump_start_mask
+│   ├── dump_end_mask
+│   ├── pause_mask
+│   └── boundary_mask
+└── cycle/
+    ├── cycle_id
+    ├── start_step
+    ├── dump_end_step
+    ├── end_step
+    ├── curr_src_sector_id
+    ├── curr_cut_depth_class
+    ├── next_src_sector_id
+    ├── next_cut_depth_class
+    ├── dst_target_id
+    ├── fill_peak_kg
+    ├── deposit_delta_kg
+    ├── peak_bucket_depth_m
+    ├── collision_count_delta
+    ├── transition_source
+    ├── plan_source
+    └── cycle_success
+```
+
+Stage-1 semantic notes:
+
+- `goal_tokens` has shape `(T, 10)` and follows Repo A's sector-first V2.1 definition
+- `mode_id` uses `0 = work`, `1 = transition`
+- normal cycle boundaries still follow `cycle_i.start = qualified_dig_start(i)` and
+  `cycle_i.end = qualified_dig_start(i+1)`
+- raw teleop recording stops on the third detected `dump_end`, so Repo A allows a
+  single terminal special-case where the final cycle closes at its own `dump_end_step`
+- if a raw episode instead ends on `max_steps`, Repo A keeps the tail cycle incomplete
+  with `end_step = -1` and `cycle_success = 0`
+
+Contract rule:
+- readers must continue to accept files that do not contain `/v2`
+- `/v2` is add-only and optional; it is not part of the required cross-repo baseline
 
 ## 5. /observations
 
@@ -170,18 +242,29 @@ col 5: target_hard_collision_count
 col 6: target_contact_max_normal_force_n
 col 7: min_distance_to_dig_area_m
 col 8: bucket_depth_below_dig_area_plane_m
+col 9: target_horizontal_distance_m
+col 10: bucket_height_above_target_rim_m
+col 11: bucket_over_target_footprint_mask
+col 12: dump_clearance_ok_mask
 ```
 
 Compatibility note:
 - older AGX V0 datasets may still have only the first five columns
 - older 7-column datasets may still omit the DigArea fields
+- older 9-column datasets omit the explicit target-geometry fields
 - Repo A decodes missing collision columns as `0.0`
 - Repo A decodes missing DigArea fields as legacy defaults and disables DigArea good-start gating automatically
+- Repo A target-safety reward, filtering, and scripted dump guards require
+  columns 9 through 12 to exist and `target_horizontal_distance_m >= 0.0`;
+  `min_distance_to_target_m` is not used as a fallback
 - `target_hard_collision_count` is cumulative within an episode
 - `target_contact_max_normal_force_n` is the completed-step maximum monitored force
-- `min_distance_to_target_m` is the approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry
+- `min_distance_to_target_m` is the legacy approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry; it is diagnostics-only for target safety
 - for `TruckBed`, helper `*FailureVolume` shapes are excluded from target-distance and target hard-collision filtering
 - `min_distance_to_dig_area_m` / `bucket_depth_below_dig_area_plane_m` are the DigArea geometry signals used to gate shaped loading reward
+- `target_horizontal_distance_m` is the explicit horizontal planar distance between the bucket target-distance proxy footprint and the active target clearance footprint; `0.0` means the footprints overlap and `-1.0` means unavailable
+- `bucket_height_above_target_rim_m` is the bucket proxy bottom height relative to the active target clearance volume top/rim
+- `bucket_over_target_footprint_mask` and `dump_clearance_ok_mask` are float masks encoded as `0.0` or `1.0`; `dump_clearance_ok_mask` may use target-specific horizontal tolerance and is the source-of-truth clearance mask for target-safety guards, but vertical clearance still requires `bucket_height_above_target_rim_m >= 0.0`
 
 ### 5.4 images/fpv
 
@@ -260,7 +343,7 @@ locked here yet.
 | Version | Notes |
 | --- | --- |
 | `1.0` | legacy datasets with older observation/image layout |
-| `1.1` | adds `timestamps`, `action_source`, `env_state`, `images/fpv`, and new metadata fields |
+| `1.1` | adds `timestamps`, `action_source`, `env_state`, `images/fpv`, and new metadata fields; current add-only `env_state` tail columns extend through index 12 |
 
 ## 10. Open Items
 

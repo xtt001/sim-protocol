@@ -1,7 +1,7 @@
 # eval_suite_v0.yaml — Shared AGX Excavation Eval Suite Skeleton
 #
 # Repo: sim-protocol (Repo C - shared)
-# Last updated: 2026-03-27
+# Last updated: 2026-04-24
 # Status: aligned to current known Repo B / Repo A behavior.
 # Unsettled values remain explicit TODOs.
 
@@ -21,6 +21,19 @@ observations:
     6: target_contact_max_normal_force_n
     7: min_distance_to_dig_area_m
     8: bucket_depth_below_dig_area_plane_m
+    9: target_horizontal_distance_m
+    10: bucket_height_above_target_rim_m
+    11: bucket_over_target_footprint_mask
+    12: dump_clearance_ok_mask
+  target_geometry_contract:
+    required_for_target_safety_training:
+      - target_horizontal_distance_m
+      - bucket_height_above_target_rim_m
+      - bucket_over_target_footprint_mask
+      - dump_clearance_ok_mask
+    valid_when: "all four fields are present and target_horizontal_distance_m >= 0.0"
+    no_legacy_fallback: true
+    note: "min_distance_to_target_m is retained as a legacy diagnostic scalar only."
 
 reward:
   hard_collision_penalty: 0.75

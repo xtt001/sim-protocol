@@ -2,7 +2,7 @@
 
 Owner: joint (Unity/AGX team + Python/testbed team)  
 Status: shared migration checklist for moving Repo A + Repo B from the current Linux-first workflow to Windows  
-Last updated: 2026-04-01
+Last updated: 2026-04-24
 
 This file is a shared coordination document. It does **not** redefine the
 protocol. Its job is to keep the platform migration aligned with the existing
@@ -194,7 +194,9 @@ Before running long experiments, verify:
 - `GET_INFO_RESP` is readable by Repo A
 - `STEP_RESP.step_id == STEP_REQ.step_id`
 - image transport is valid
-- `qpos`, `qvel`, and `env_state` lengths match Repo C definitions
+- `qpos`, `qvel`, and current 13-column `env_state` lengths match Repo C definitions
+- the four target-geometry fields at `env_state[9]` through `env_state[12]`
+  are present before running target-safety training or scripted dump guards
 - reset semantics remain unchanged
 
 ### 8.3 Behavior validation
