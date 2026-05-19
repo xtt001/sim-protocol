@@ -67,7 +67,7 @@ qvel:
     3: bucket_speed
 
 env_state:
-  dim: 13
+  dim: 16
   order:
     0: mass_in_bucket_kg
     1: excavated_mass_kg
@@ -82,6 +82,9 @@ env_state:
     10: bucket_height_above_target_rim_m
     11: bucket_over_target_footprint_mask
     12: dump_clearance_ok_mask
+    13: bucket_dump_area_relative_x_m
+    14: bucket_dump_area_relative_z_m
+    15: bucket_dump_area_footprint_outside_distance_m
 
   mass_in_bucket_kg:
     index: 0
@@ -106,12 +109,12 @@ env_state:
   min_distance_to_target_m:
     index: 4
     units: "m"
-    notes: "Legacy approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry; retained for diagnostics only and not a fallback for target-safety geometry; for TruckBed, helper *FailureVolume shapes are excluded from target-distance and hard-collision filtering; -1.0 means unavailable."
+    notes: "Legacy approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry; retained for diagnostics only and not a fallback for target-safety geometry; -1.0 means unavailable."
 
   target_hard_collision_count:
     index: 5
     units: "count"
-    notes: "Cumulative episode count of monitored hard-collision contact sessions against the active target; one continuous contact session increments at most once and the next increment requires leaving the target first; TruckBed uses the full BedTruck hard body with helper *FailureVolume shapes excluded."
+    notes: "Cumulative episode count of monitored hard-collision contact sessions against the active dump target; one continuous contact session increments at most once and the next increment requires leaving the target first."
 
   target_contact_max_normal_force_n:
     index: 6
@@ -146,7 +149,22 @@ env_state:
   dump_clearance_ok_mask:
     index: 12
     units: "mask"
-    notes: "Float mask, 1.0 when the bucket is within the active target's dump-clearance horizontal tolerance and bucket_height_above_target_rim_m >= 0.0, otherwise 0.0. TruckBed currently uses a wider horizontal tolerance than strict footprint overlap, but vertical clearance is not tolerant."
+    notes: "Float mask, 1.0 when the bucket is within the active dump area's horizontal tolerance and bucket_height_above_target_rim_m >= 0.0, otherwise 0.0. Vertical clearance is not tolerant."
+
+  bucket_dump_area_relative_x_m:
+    index: 13
+    units: "m"
+    notes: "Bucket target-distance proxy center x in the active dump-area local frame."
+
+  bucket_dump_area_relative_z_m:
+    index: 14
+    units: "m"
+    notes: "Bucket target-distance proxy center z in the active dump-area local frame."
+
+  bucket_dump_area_footprint_outside_distance_m:
+    index: 15
+    units: "m"
+    notes: "Unsigned horizontal distance from the bucket proxy footprint to the active dump-area footprint; 0.0 means overlapping or inside."
 
   target_geometry_contract:
     required_for_target_safety_training:
@@ -154,7 +172,10 @@ env_state:
       - bucket_height_above_target_rim_m
       - bucket_over_target_footprint_mask
       - dump_clearance_ok_mask
-    valid_when: "all four fields are present and target_horizontal_distance_m >= 0.0"
+      - bucket_dump_area_relative_x_m
+      - bucket_dump_area_relative_z_m
+      - bucket_dump_area_footprint_outside_distance_m
+    valid_when: "all seven target/dump-area geometry fields are present and target_horizontal_distance_m >= 0.0"
     no_legacy_fallback: true
     notes: "Repo A target-safety reward, filtering, and scripted dump guards require this explicit geometry contract. min_distance_to_target_m is legacy diagnostics only."
 

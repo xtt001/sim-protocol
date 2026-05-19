@@ -34,11 +34,11 @@ Current observation semantics:
 - qpos order: `[swing_position_norm, boom_position_norm, stick_position_norm, bucket_position_norm]`
 - qvel order: `[swing_speed, boom_speed, stick_speed, bucket_speed]`
 - env_state order:
-  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m, target_hard_collision_count, target_contact_max_normal_force_n, min_distance_to_dig_area_m, bucket_depth_below_dig_area_plane_m, target_horizontal_distance_m, bucket_height_above_target_rim_m, bucket_over_target_footprint_mask, dump_clearance_ok_mask]`
+  `[mass_in_bucket_kg, excavated_mass_kg, mass_in_target_box_kg, deposited_mass_in_target_box_kg, min_distance_to_target_m, target_hard_collision_count, target_contact_max_normal_force_n, min_distance_to_dig_area_m, bucket_depth_below_dig_area_plane_m, target_horizontal_distance_m, bucket_height_above_target_rim_m, bucket_over_target_footprint_mask, dump_clearance_ok_mask, bucket_dump_area_relative_x_m, bucket_dump_area_relative_z_m, bucket_dump_area_footprint_outside_distance_m]`
 
 `mass_in_target_box_kg` semantics:
 - this field always refers to the currently active dump target selected by Unity
-- current main-scene targets are `ContainerBox` and `TruckBed`
+- current E85 scenes use dump-area targets
 
 `deposited_mass_in_target_box_kg` semantics:
 - this field is reset-relative net retained mass inside the active target
@@ -56,9 +56,6 @@ Current observation semantics:
   on `ExcavationMassTracker`
 - the target side now prefers target hard box shapes and only falls back to a
   dedicated target-distance volume when those shapes are unavailable
-- for `TruckBed`, helper `*FailureVolume` shapes such as the dump/top failure
-  volumes are excluded from both that target-side distance geometry set and
-  the target hard-collision shape filtering
 - `-1.0` means the distance could not be evaluated
 
 `target_horizontal_distance_m` semantics:
@@ -84,13 +81,20 @@ Current observation semantics:
 - this field is a float mask
 - `1.0` means the bucket is within the active target's dump-clearance
   horizontal tolerance and `bucket_height_above_target_rim_m >= 0.0`
-- `TruckBed` currently uses a wider horizontal tolerance than strict footprint
-  overlap because material can enter the bed safely before the bucket proxy
-  footprint fully overlaps the bed footprint
-- vertical clearance is not tolerant for `TruckBed`: the bucket proxy bottom
-  must remain above the target rim/top, and negative height means not clear
+- active dump areas may use a wider horizontal tolerance than strict footprint
+  overlap; vertical clearance is not tolerant
 - `0.0` means dump clearance is not currently satisfied or the explicit
   geometry is unavailable
+
+`bucket_dump_area_relative_x_m` / `bucket_dump_area_relative_z_m` semantics:
+- signed bucket proxy center coordinates in the active dump-area local frame
+- planners use these fields when they need a local approach corridor rather
+  than unsigned footprint proximity alone
+
+`bucket_dump_area_footprint_outside_distance_m` semantics:
+- unsigned horizontal distance from the bucket proxy footprint to the active
+  dump-area footprint
+- `0.0` means the footprint overlaps or is inside
 
 `min_distance_to_dig_area_m` semantics:
 - this field is the approximate minimum distance between the bucket measurement
@@ -113,8 +117,7 @@ Current observation semantics:
 - the current Unity scene default threshold is `hard_collision_normal_force_thresh_n = 5000.0`
 - source shapes are the enabled AGX `Collide.Shape` components under the excavator root
 - target shapes come from the currently active target hard-surface shape set
-- when the active target is `TruckBed`, the monitored target hard-surface set covers the full `BedTruck` collision body, not only the bed/trunk measurement region
-- for `TruckBed`, helper `*FailureVolume` shapes are excluded from this target hard-surface set
+- the monitored target hard-surface set covers the active dump-area target geometry
 
 `target_contact_max_normal_force_n` semantics:
 - this field is the maximum monitored solved normal-force magnitude, in Newtons, observed during the completed step across excavator-vs-active-target contacts
@@ -267,7 +270,7 @@ Current behavior:
 - when `reset_pose = true` and `reset_terrain = false`, Unity resets pose and
   counters without forcing a terrain height reset
 - when both flags are true, Unity performs the full scene reset path,
-  including truck rigid bodies and truck bed/drivetrain constraints
+  including dump-area target state when present
 - when `reset_terrain = true`, Unity rebuilds the deformable terrain state so
   dynamic soil mass/particles are cleared as part of reset, including particles
   that were still trapped in the bucket
@@ -302,7 +305,7 @@ After the common response prefix, fields are written in this order:
 Current known values:
 - `qpos.len = 4`
 - `qvel.len = 4`
-- `env_state.len = 13`
+- `env_state.len = 16`
 - `reward = deposited_mass_in_target_box_kg`
 - `image_format = "raw_rgb"` when FPV capture succeeds
 - `image_w = 0`, `image_h = 0`, `image_payload = empty` when no FPV frame is available
@@ -328,7 +331,7 @@ Current evaluator note:
 - Repo A also applies a fixed per-step hard-collision penalty when the
   cumulative `target_hard_collision_count` increases on that step
 - Repo A target-safety reward, data filtering, and scripted dump guards require
-  `env_state[9]` through `env_state[12]` to be present and
+  `env_state[9]` through `env_state[15]` to be present and
   `target_horizontal_distance_m >= 0.0`; `env_state[4]` is not a fallback
 - when `env_state[7]` and `env_state[8]` are present, Repo A only opens the
   shaped loading reward after bucket load increase occurs while touching the
@@ -348,6 +351,9 @@ Current target-routing note:
 - `env_state[10]` reports bucket bottom height above the active target rim in meters
 - `env_state[11]` reports whether the bucket proxy footprint overlaps the active target footprint
 - `env_state[12]` reports whether target dump clearance is currently satisfied
+- `env_state[13]` reports bucket proxy center x in the active dump-area local frame
+- `env_state[14]` reports bucket proxy center z in the active dump-area local frame
+- `env_state[15]` reports unsigned horizontal distance outside the active dump-area footprint
 - target identity itself is currently scene/runtime configuration and is not
   carried explicitly in the binary `STEP_RESP` payload
 
@@ -389,7 +395,10 @@ Image payload rules:
   target_horizontal_distance_m,
   bucket_height_above_target_rim_m,
   bucket_over_target_footprint_mask,
-  dump_clearance_ok_mask
+  dump_clearance_ok_mask,
+  bucket_dump_area_relative_x_m,
+  bucket_dump_area_relative_z_m,
+  bucket_dump_area_footprint_outside_distance_m
 ]
 ```
 
@@ -424,8 +433,7 @@ Compared with older drafts, the current implementation has these important updat
   target-safety training and scripted dump guards, with no fallback to
   `min_distance_to_target_m`
 - the target-distance field now uses the editor-configurable bucket proxy
-  volume on `ExcavationMassTracker`, while `TruckBed` helper `*FailureVolume`
-  shapes are excluded from target-distance and target hard-collision filtering
+  volume on `ExcavationMassTracker`
 
 ## 13. Known Limits
 

@@ -194,9 +194,10 @@ Before running long experiments, verify:
 - `GET_INFO_RESP` is readable by Repo A
 - `STEP_RESP.step_id == STEP_REQ.step_id`
 - image transport is valid
-- `qpos`, `qvel`, and current 13-column `env_state` lengths match Repo C definitions
-- the four target-geometry fields at `env_state[9]` through `env_state[12]`
-  are present before running target-safety training or scripted dump guards
+- `qpos`, `qvel`, and current 16-column `env_state` lengths match Repo C definitions
+- the seven target/dump-area geometry fields at `env_state[9]` through
+  `env_state[15]` are present before running target-safety training or
+  scripted dump guards
 - reset semantics remain unchanged
 
 ### 8.3 Behavior validation

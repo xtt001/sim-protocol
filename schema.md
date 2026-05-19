@@ -246,25 +246,30 @@ col 9: target_horizontal_distance_m
 col 10: bucket_height_above_target_rim_m
 col 11: bucket_over_target_footprint_mask
 col 12: dump_clearance_ok_mask
+col 13: bucket_dump_area_relative_x_m
+col 14: bucket_dump_area_relative_z_m
+col 15: bucket_dump_area_footprint_outside_distance_m
 ```
 
 Compatibility note:
 - older AGX V0 datasets may still have only the first five columns
 - older 7-column datasets may still omit the DigArea fields
-- older 9-column datasets omit the explicit target-geometry fields
+- older 9-column datasets omit the explicit target/dump-area geometry fields
+- older 13-column target-geometry datasets omit the signed dump-area local geometry fields
 - Repo A decodes missing collision columns as `0.0`
 - Repo A decodes missing DigArea fields as legacy defaults and disables DigArea good-start gating automatically
 - Repo A target-safety reward, filtering, and scripted dump guards require
-  columns 9 through 12 to exist and `target_horizontal_distance_m >= 0.0`;
+  columns 9 through 15 to exist and `target_horizontal_distance_m >= 0.0`;
   `min_distance_to_target_m` is not used as a fallback
 - `target_hard_collision_count` is cumulative within an episode
 - `target_contact_max_normal_force_n` is the completed-step maximum monitored force
 - `min_distance_to_target_m` is the legacy approximate minimum distance between the current bucket target-distance proxy volume and the active target distance geometry; it is diagnostics-only for target safety
-- for `TruckBed`, helper `*FailureVolume` shapes are excluded from target-distance and target hard-collision filtering
 - `min_distance_to_dig_area_m` / `bucket_depth_below_dig_area_plane_m` are the DigArea geometry signals used to gate shaped loading reward
-- `target_horizontal_distance_m` is the explicit horizontal planar distance between the bucket target-distance proxy footprint and the active target clearance footprint; `0.0` means the footprints overlap and `-1.0` means unavailable
-- `bucket_height_above_target_rim_m` is the bucket proxy bottom height relative to the active target clearance volume top/rim
+- `target_horizontal_distance_m` is the explicit horizontal planar distance between the bucket target-distance proxy footprint and the active dump-area clearance footprint; `0.0` means the footprints overlap and `-1.0` means unavailable
+- `bucket_height_above_target_rim_m` is the bucket proxy bottom height relative to the active dump-area clearance volume top/rim
 - `bucket_over_target_footprint_mask` and `dump_clearance_ok_mask` are float masks encoded as `0.0` or `1.0`; `dump_clearance_ok_mask` may use target-specific horizontal tolerance and is the source-of-truth clearance mask for target-safety guards, but vertical clearance still requires `bucket_height_above_target_rim_m >= 0.0`
+- `bucket_dump_area_relative_x_m` and `bucket_dump_area_relative_z_m` are signed local-frame bucket proxy center coordinates in the active dump area
+- `bucket_dump_area_footprint_outside_distance_m` is the unsigned horizontal distance to the active dump-area footprint
 
 ### 5.4 images/fpv
 
@@ -343,7 +348,7 @@ locked here yet.
 | Version | Notes |
 | --- | --- |
 | `1.0` | legacy datasets with older observation/image layout |
-| `1.1` | adds `timestamps`, `action_source`, `env_state`, `images/fpv`, and new metadata fields; current add-only `env_state` tail columns extend through index 12 |
+| `1.1` | adds `timestamps`, `action_source`, `env_state`, `images/fpv`, and new metadata fields; current add-only `env_state` tail columns extend through index 15 |
 
 ## 10. Open Items
 

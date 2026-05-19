@@ -55,19 +55,20 @@ index 9 = target_horizontal_distance_m
 index 10 = bucket_height_above_target_rim_m
 index 11 = bucket_over_target_footprint_mask
 index 12 = dump_clearance_ok_mask
+index 13 = bucket_dump_area_relative_x_m
+index 14 = bucket_dump_area_relative_z_m
+index 15 = bucket_dump_area_footprint_outside_distance_m
 ```
 
 Current distance semantics:
 - `min_distance_to_target_m` reports legacy approximate bucket-proxy-to-active-target-distance-geometry distance and is diagnostics-only for target safety
 - `min_distance_to_dig_area_m` and `bucket_depth_below_dig_area_plane_m` are the DigArea good-start geometry signals used by Repo A reward gating
 - `target_horizontal_distance_m`, `bucket_height_above_target_rim_m`,
-  `bucket_over_target_footprint_mask`, and `dump_clearance_ok_mask` are the
-  explicit target-geometry contract used by Repo A target-safety reward,
-  filtering, and scripted dump guards
-- target-safety logic must not fall back from those four explicit fields to
+  `bucket_over_target_footprint_mask`, `dump_clearance_ok_mask`, and the three
+  `bucket_dump_area_*` fields are the explicit target/dump-area geometry
+  contract used by Repo A target-safety reward, filtering, and scripted dump guards
+- target-safety logic must not fall back from those explicit fields to
   `min_distance_to_target_m`
-- for `TruckBed`, helper `*FailureVolume` shapes are excluded from both target-distance
-  geometry and target hard-collision filtering
 
 Step-ack hard rule:
 ```text
@@ -133,14 +134,15 @@ Operational mapping:
   `target_hard_collision_count` and `target_contact_max_normal_force_n`.
 - Repo B now exports explicit active-target dump geometry:
   `target_horizontal_distance_m`, `bucket_height_above_target_rim_m`,
-  `bucket_over_target_footprint_mask`, and `dump_clearance_ok_mask`.
+  `bucket_over_target_footprint_mask`, `dump_clearance_ok_mask`, and the three
+  `bucket_dump_area_*` local geometry fields.
 - `target_hard_collision_count` is cumulative within the episode.
 - one continuous excavator-vs-target contact session increments that count at
   most once.
 - the count can increase again only after the excavator leaves the target and
   later touches it again.
-- For `TruckBed`, the monitored collision body covers the full `BedTruck`
-  hard body, not only the bed/trunk area.
+- The monitored collision body should represent the active dump-area target
+  geometry in the current E85 scene.
 - Repo A HDF5 v1.1 episodes now also carry demo-level metadata and config
   snapshot attrs such as `operator_id`, `session_id`, `notes`,
   `record_config_path`, and `record_config_yaml`.

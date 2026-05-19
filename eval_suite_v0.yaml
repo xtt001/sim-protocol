@@ -25,13 +25,19 @@ observations:
     10: bucket_height_above_target_rim_m
     11: bucket_over_target_footprint_mask
     12: dump_clearance_ok_mask
+    13: bucket_dump_area_relative_x_m
+    14: bucket_dump_area_relative_z_m
+    15: bucket_dump_area_footprint_outside_distance_m
   target_geometry_contract:
     required_for_target_safety_training:
       - target_horizontal_distance_m
       - bucket_height_above_target_rim_m
       - bucket_over_target_footprint_mask
       - dump_clearance_ok_mask
-    valid_when: "all four fields are present and target_horizontal_distance_m >= 0.0"
+      - bucket_dump_area_relative_x_m
+      - bucket_dump_area_relative_z_m
+      - bucket_dump_area_footprint_outside_distance_m
+    valid_when: "all seven target/dump-area geometry fields are present and target_horizontal_distance_m >= 0.0"
     no_legacy_fallback: true
     note: "min_distance_to_target_m is retained as a legacy diagnostic scalar only."
 
