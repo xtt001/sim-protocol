@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 .DS_Store
 *.swp
+
+# ROS 2 / colcon generated artifacts
+build/
+install/
+log/

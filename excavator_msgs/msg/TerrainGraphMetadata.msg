@@ -1,0 +1,46 @@
+# Metadata for TerrainGraph.
+#
+# Coordinates are in meters. Node and edge positions are graph-local; the
+# world_from_graph_* transform maps graph-local coordinates back to Unity world.
+
+string terrain_name
+int32 terrain_resolution
+float32 terrain_width
+float32 terrain_length
+float32 terrain_height
+float32 element_size
+float32 maximum_depth
+
+string roi_center_mode
+float32 roi_radius_m
+float32 roi_height_margin_m
+bool roi_enabled
+float32 roi_center_world_x
+float32 roi_center_world_y
+float32 roi_center_world_z
+
+string coordinate_frame
+float32 world_from_graph_origin_x
+float32 world_from_graph_origin_y
+float32 world_from_graph_origin_z
+float32 world_from_graph_rotation_x
+float32 world_from_graph_rotation_y
+float32 world_from_graph_rotation_z
+float32 world_from_graph_rotation_w
+
+int32 surface_node_count
+int32 subsurface_node_count
+int32 dynamic_particle_count
+int32 tool_node_count
+int32 edge_count
+int32 radius_edge_count
+int32 tool_soil_edge_count
+
+int32 dynamic_particles_available
+int32 dynamic_particles_skipped_outside_roi
+
+bool bucket_reference_valid
+string bucket_reference_name
+float32 bucket_world_x
+float32 bucket_world_y
+float32 bucket_world_z

@@ -1,4 +1,4 @@
-# sim-protocol — Shared Protocol and Schema (Repo C)
+# sim-protocol — Shared Protocol and ROS 2 Interfaces (Repo C)
 
 Owner: joint (Unity/AGX team + Python/testbed team)
 Rule: this repo is the shared contract surface for Repo A and Repo B.
@@ -9,6 +9,9 @@ Current status:
   guessed or frozen as a fake constant.
 - Current shared docs are also aligned to Repo A's live AGX HDF5 schema and
   eval artifact names.
+- ROS 2 interface work has started under `excavator_msgs/`. The first draft
+  package is intentionally additive: it does not replace the legacy step-ack
+  contract until Repo A and Repo B migrate together.
 
 ## Contents
 
@@ -19,6 +22,55 @@ Current status:
 | [constants.yaml](constants.yaml) | Shared constants and ordering definitions |
 | [eval_suite_v0.yaml](eval_suite_v0.yaml) | Fixed eval suite skeleton for AGX excavation |
 | [platform_switch_windows.md](platform_switch_windows.md) | Shared checklist for migrating Repo A + Repo B to Windows without changing the Repo C contract |
+| [excavator_msgs](excavator_msgs) | Draft ROS 2 interface package for sim/research/real adapters |
+
+## ROS 2 Interfaces
+
+The canonical ROS 2 package name is:
+
+```text
+excavator_msgs
+```
+
+The current package is a draft `0.x` interface surface. It is safe to evolve
+additively while Track 1 is still validating perception channels.
+
+Current interfaces:
+
+| Interface | Purpose | Status |
+| --- | --- | --- |
+| `excavator_msgs/msg/TerrainGraph` | Online terrain graph observation aligned with Repo B's `terrain_graph_observation_v0` JSON schema | draft |
+| `excavator_msgs/msg/TerrainGraphMetadata` | Sampling configuration, ROI, and frame transform metadata | draft |
+| `excavator_msgs/msg/TerrainGraphNode` | Frame-local graph node record | draft |
+| `excavator_msgs/msg/TerrainGraphEdge` | Frame-local graph edge record | draft |
+
+Standard ROS messages should be reused instead of duplicated:
+
+| Topic | Type | Owner |
+| --- | --- | --- |
+| `/lidar/pointcloud` | `sensor_msgs/msg/PointCloud2` | AGX native `LidarROS2Publisher` in Repo B |
+| `/lidar/pointcloud_ex` | `sensor_msgs/msg/PointCloud2` | AGX native `LidarROS2Publisher` in Repo B |
+| `/terrain_graph/json` | `std_msgs/msg/String` | Transitional Repo B JSON bridge aligned with `TerrainGraph` draft |
+
+Build check:
+
+```bash
+cd /home/zhaoshuai/workspace_excavator/sim-protocol
+source /opt/ros/jazzy/setup.bash
+colcon build --packages-select excavator_msgs
+source install/setup.bash
+ros2 interface show excavator_msgs/msg/TerrainGraph
+```
+
+Migration rule:
+- Do not remove or rewrite the legacy step-ack files during Track 1.
+- Do not route graph payloads through `STEP_RESP`; publish graph observations on
+  a ROS 2 topic once Repo B adds the corresponding publisher.
+- The short-term Repo B graph publisher may use `std_msgs/msg/String` JSON while
+  Unity-side custom message publishing is being wired. The typed target remains
+  `excavator_msgs/msg/TerrainGraph`.
+- Add control actions/services only in Track 2, after the message contract is
+  reviewed against Repo A and Repo B together.
 
 ## Quick Reference
 
