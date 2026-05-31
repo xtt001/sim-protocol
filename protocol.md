@@ -1,7 +1,7 @@
 # protocol.md — AGXUnity <-> Python Step-Ack Wire Protocol
 
 Repo: sim-protocol (Repo C - shared)
-Last updated: 2026-04-24
+Last updated: 2026-05-20
 Owner: joint (Unity/AGX team + Python/testbed team)
 
 This document is aligned to the current Repo B implementation.
@@ -204,11 +204,15 @@ Binary field order:
 1. `step_id: int64`
 2. `action: float32[]`
 3. `client_time_ns: int64` optional
+4. `planner_debug_json: string` optional, only present when field 3 is present
 
 Constraints:
 - action length must be at least `4`
 - Unity currently consumes the first four action values in this order:
   `[swing, boom, stick, bucket]`
+- `planner_debug_json` is a diagnostic tail field for live visualization. It
+  must not change physics, action application, reward, or `STEP_RESP`. Older
+  clients/servers may omit it.
 
 ## 6. Common Response Prefix
 
@@ -356,6 +360,19 @@ Current target-routing note:
 - `env_state[15]` reports unsigned horizontal distance outside the active dump-area footprint
 - target identity itself is currently scene/runtime configuration and is not
   carried explicitly in the binary `STEP_RESP` payload
+- V2.2 YuLong producers may append a 64D `env_state` tail. Its 3x2 DigArea
+  `surface_depth` and `removed_depth` fields are meters below the calibrated
+  DigArea plane, positive downward, row-major `r0c0, r0c1, r1c0, r1c1,
+  r2c0, r2c1`. Repo B uses the same DigArea Box plane as
+  `bucket_depth_below_dig_area_plane_m`: terrain-surface samples are transformed
+  into the DigArea local frame and measured as positive downward distance from
+  that plane. The preferred source is a downward physics raycast onto the
+  DigTerrain collider; live AGX deformable terrain native height and Unity
+  `TerrainData` are compatibility fallbacks. `removed_depth` is reset-relative:
+  `max(0, current_surface_depth - reset_baseline_surface_depth)`. Any
+  mass-attributed removal fallback is diagnostic-only and must not be treated as
+  pure geometric soil-surface truth unless explicitly enabled and documented by
+  the producing scene.
 
 Image payload rules:
 - layout is row-major
@@ -405,7 +422,7 @@ Image payload rules:
 ## 11. Step-Ack Rules
 
 Required control loop:
-1. Python sends `STEP_REQ(step_id=k, action=...)`
+1. Python sends `STEP_REQ(step_id=k, action=..., planner_debug_json=optional)`
 2. Unity applies the action
 3. Unity performs exactly one logical `DoStep()`
 4. Unity samples qpos, qvel, env_state, and FPV frame
@@ -432,12 +449,20 @@ Compared with older drafts, the current implementation has these important updat
   the first nine env_state indices stable; Repo A requires these fields for
   target-safety training and scripted dump guards, with no fallback to
   `min_distance_to_target_m`
+- `STEP_REQ` may carry an optional trailing `planner_debug_json` diagnostic
+  payload. Repo B caches the latest valid snapshot for HUD and a thin DigArea
+  entry-point pointer; malformed JSON only produces a warning. Repo A may also
+  include pre-dig align counters and entry error in the same JSON for HUD
+  diagnosis. These fields do not affect Unity action execution.
 - the target-distance field now uses the editor-configurable bucket proxy
   volume on `ExcavationMassTracker`
 
 ## 13. Known Limits
 
 - `protocol_version` string is still `agx-sim/v0`
+- the optional `planner_debug_json` tail field does not bump the logical
+  protocol string because the legacy prefix layout is unchanged and missing
+  trailing fields remain valid
 - boom position and speed still use `BoomPrismatics[0]`
 - `swing_position_norm` exists, but its normalization window is scene/config dependent
 - transport is still a single-client sequential TCP service; the server now

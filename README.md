@@ -77,6 +77,10 @@ STEP_RESP.step_id must equal STEP_REQ.step_id.
 
 Contract boundary:
 - Live Repo A <-> Repo B interaction is the binary wire protocol in `protocol.md`.
+- `STEP_REQ` may include an optional trailing `planner_debug_json` diagnostic
+  string for Unity HUD / a thin DigArea entry-point pointer. It is not a
+  control input and does not change `STEP_RESP` semantics. Repo A may include
+  pre-dig align counters in that JSON for live diagnosis.
 - Offline collected data is the HDF5 dataset contract in `schema.md`.
 - Repo B may emit local `metadata.json` / `steps.jsonl` / raw RGB sidecar files,
   but those are auxiliary Unity-native exports, not the shared live contract.
